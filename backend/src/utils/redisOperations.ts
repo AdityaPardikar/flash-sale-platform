@@ -1,75 +1,33 @@
 import redis from './redis';
+import {
+  buildInventoryKey,
+  buildQueueKey,
+  buildReservationKey,
+  buildSessionKey,
+  REDIS_TTL_SECONDS,
+} from '../config/redisKeys';
+import { loadLuaScripts, LuaScriptMap } from '../redis/luaLoader';
 
-// Lua script for atomic inventory decrement
-export const LUA_DECREMENT_INVENTORY = `
-local key = KEYS[1]
-local quantity = tonumber(ARGV[1])
+let luaScripts: LuaScriptMap | null = null;
 
-local current = redis.call('GET', key)
-if not current then
-  return 0
-end
+async function ensureLuaScriptsLoaded(): Promise<LuaScriptMap> {
+  if (luaScripts) {
+    return luaScripts;
+  }
 
-current = tonumber(current)
-if current < quantity then
-  return 0
-end
-
-redis.call('DECRBY', key, quantity)
-return current - quantity
-`;
-
-// Lua script for atomic inventory increment
-export const LUA_INCREMENT_INVENTORY = `
-local key = KEYS[1]
-local quantity = tonumber(ARGV[1])
-local max_quantity = tonumber(ARGV[2])
-
-local current = redis.call('GET', key)
-current = (current and tonumber(current)) or 0
-
-local new_value = current + quantity
-if new_value > max_quantity then
-  return -1
-end
-
-redis.call('SET', key, new_value)
-return new_value
-`;
-
-// Lua script for reserve inventory with expiration
-export const LUA_RESERVE_INVENTORY = `
-local inventory_key = KEYS[1]
-local reservation_key = KEYS[2]
-local user_id = ARGV[1]
-local quantity = tonumber(ARGV[2])
-local ttl = tonumber(ARGV[3])
-
-local current = redis.call('GET', inventory_key)
-if not current then
-  return 0
-end
-
-current = tonumber(current)
-if current < quantity then
-  return 0
-end
-
-redis.call('DECRBY', inventory_key, quantity)
-redis.call('HSET', reservation_key, 'quantity', quantity, 'reserved_at', redis.call('TIME')[1], 'user_id', user_id)
-redis.call('EXPIRE', reservation_key, ttl)
-
-return 1
-`;
+  luaScripts = await loadLuaScripts(redis);
+  return luaScripts;
+}
 
 // Function to decrement inventory
-export async function decrementInventory(
-  flashSaleId: string,
-  quantity: number
-): Promise<number> {
-  const key = `inventory:${flashSaleId}`;
+export async function decrementInventory(flashSaleId: string, quantity: number): Promise<number> {
+  const key = buildInventoryKey(flashSaleId);
   try {
-    const result = await redis.eval(LUA_DECREMENT_INVENTORY, 1, key, quantity);
+    const scripts = await ensureLuaScriptsLoaded();
+    const script = scripts.decrementInventory;
+    const result = script.sha
+      ? await redis.evalsha(script.sha, 1, key, quantity)
+      : await redis.eval(script.inline, 1, key, quantity);
     return Number(result);
   } catch (error) {
     console.error('Error decrementing inventory:', error);
@@ -83,10 +41,14 @@ export async function incrementInventory(
   quantity: number,
   maxQuantity: number
 ): Promise<number> {
-  const key = `inventory:${flashSaleId}`;
+  const key = buildInventoryKey(flashSaleId);
   try {
-    const result = await redis.eval(LUA_INCREMENT_INVENTORY, 1, key, quantity, maxQuantity);
-    return Number(result);
+    const newValue = await redis.incrby(key, quantity);
+    if (newValue > maxQuantity) {
+      await redis.set(key, maxQuantity);
+      return maxQuantity;
+    }
+    return newValue;
   } catch (error) {
     console.error('Error incrementing inventory:', error);
     throw error;
@@ -100,19 +62,16 @@ export async function reserveInventory(
   quantity: number,
   ttlSeconds: number = 300
 ): Promise<boolean> {
-  const inventoryKey = `inventory:${flashSaleId}`;
-  const reservationKey = `reservation:${userId}:${flashSaleId}`;
+  const inventoryKey = buildInventoryKey(flashSaleId);
+  const reservationKey = buildReservationKey(userId, flashSaleId);
 
   try {
-    const result = await redis.eval(
-      LUA_RESERVE_INVENTORY,
-      2,
-      inventoryKey,
-      reservationKey,
-      userId,
-      quantity,
-      ttlSeconds
-    );
+    const scripts = await ensureLuaScriptsLoaded();
+    const script = scripts.reserveInventory;
+    const ttl = ttlSeconds || REDIS_TTL_SECONDS.reservation;
+    const result = script.sha
+      ? await redis.evalsha(script.sha, 2, inventoryKey, reservationKey, userId, quantity, ttl)
+      : await redis.eval(script.inline, 2, inventoryKey, reservationKey, userId, quantity, ttl);
     return result === 1;
   } catch (error) {
     console.error('Error reserving inventory:', error);
@@ -122,20 +81,16 @@ export async function reserveInventory(
 
 // Function to release reservation
 export async function releaseReservation(userId: string, flashSaleId: string): Promise<boolean> {
-  const reservationKey = `reservation:${userId}:${flashSaleId}`;
-  const inventoryKey = `inventory:${flashSaleId}`;
+  const reservationKey = buildReservationKey(userId, flashSaleId);
+  const inventoryKey = buildInventoryKey(flashSaleId);
 
   try {
-    const reservation = await redis.hgetall(reservationKey);
-    if (!reservation || !reservation.quantity) {
-      return false;
-    }
-
-    const quantity = Number(reservation.quantity);
-    await redis.incrby(inventoryKey, quantity);
-    await redis.del(reservationKey);
-
-    return true;
+    const scripts = await ensureLuaScriptsLoaded();
+    const script = scripts.releaseReservation;
+    const released = script.sha
+      ? await redis.evalsha(script.sha, 2, reservationKey, inventoryKey)
+      : await redis.eval(script.inline, 2, reservationKey, inventoryKey);
+    return Number(released) > 0;
   } catch (error) {
     console.error('Error releasing reservation:', error);
     throw error;
@@ -144,8 +99,13 @@ export async function releaseReservation(userId: string, flashSaleId: string): P
 
 // Queue operations
 export async function joinQueue(flashSaleId: string, userId: string): Promise<number> {
-  const key = `queue:${flashSaleId}`;
+  const key = buildQueueKey(flashSaleId);
   try {
+    const existing = await redis.zrank(key, userId);
+    if (existing !== null) {
+      return Number(existing) + 1;
+    }
+
     // Add to sorted set with current timestamp as score (for FIFO)
     await redis.zadd(key, Date.now(), userId);
     // Get position in queue
@@ -158,7 +118,7 @@ export async function joinQueue(flashSaleId: string, userId: string): Promise<nu
 }
 
 export async function getQueuePosition(flashSaleId: string, userId: string): Promise<number> {
-  const key = `queue:${flashSaleId}`;
+  const key = buildQueueKey(flashSaleId);
   try {
     const position = await redis.zrank(key, userId);
     return position !== null ? Number(position) + 1 : -1;
@@ -169,7 +129,7 @@ export async function getQueuePosition(flashSaleId: string, userId: string): Pro
 }
 
 export async function leaveQueue(flashSaleId: string, userId: string): Promise<boolean> {
-  const key = `queue:${flashSaleId}`;
+  const key = buildQueueKey(flashSaleId);
   try {
     const result = await redis.zrem(key, userId);
     return Number(result) > 0;
@@ -180,7 +140,7 @@ export async function leaveQueue(flashSaleId: string, userId: string): Promise<b
 }
 
 export async function getQueueLength(flashSaleId: string): Promise<number> {
-  const key = `queue:${flashSaleId}`;
+  const key = buildQueueKey(flashSaleId);
   try {
     const length = await redis.zcard(key);
     return Number(length);
@@ -192,7 +152,7 @@ export async function getQueueLength(flashSaleId: string): Promise<number> {
 
 // Session management
 export async function setSession(userId: string, token: string, ttlSeconds: number = 86400) {
-  const key = `session:${userId}`;
+  const key = buildSessionKey(userId);
   try {
     await redis.setex(key, ttlSeconds, token);
   } catch (error) {
@@ -202,7 +162,7 @@ export async function setSession(userId: string, token: string, ttlSeconds: numb
 }
 
 export async function getSession(userId: string): Promise<string | null> {
-  const key = `session:${userId}`;
+  const key = buildSessionKey(userId);
   try {
     return await redis.get(key);
   } catch (error) {
@@ -212,7 +172,7 @@ export async function getSession(userId: string): Promise<string | null> {
 }
 
 export async function deleteSession(userId: string) {
-  const key = `session:${userId}`;
+  const key = buildSessionKey(userId);
   try {
     await redis.del(key);
   } catch (error) {

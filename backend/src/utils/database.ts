@@ -9,7 +9,7 @@ const pool = new Pool({
   password: DATABASE_CONFIG.password,
 });
 
-pool.on('error', (err) => {
+pool.on('error', (err: Error) => {
   console.error('Unexpected error on idle client', err);
 });
 
