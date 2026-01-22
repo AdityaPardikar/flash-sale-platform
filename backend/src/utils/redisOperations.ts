@@ -4,6 +4,7 @@ import {
   buildQueueKey,
   buildReservationKey,
   buildSessionKey,
+  REDIS_LIMITS,
   REDIS_TTL_SECONDS,
 } from '../config/redisKeys';
 import { loadLuaScripts, LuaScriptMap } from '../redis/luaLoader';
@@ -21,6 +22,10 @@ async function ensureLuaScriptsLoaded(): Promise<LuaScriptMap> {
 
 // Function to decrement inventory
 export async function decrementInventory(flashSaleId: string, quantity: number): Promise<number> {
+  if (quantity < REDIS_LIMITS.minQuantity) {
+    return 0;
+  }
+
   const key = buildInventoryKey(flashSaleId);
   try {
     const scripts = await ensureLuaScriptsLoaded();
@@ -41,6 +46,10 @@ export async function incrementInventory(
   quantity: number,
   maxQuantity: number
 ): Promise<number> {
+  if (quantity < REDIS_LIMITS.minQuantity) {
+    return await redis.get(buildInventoryKey(flashSaleId)).then((v) => Number(v || 0));
+  }
+
   const key = buildInventoryKey(flashSaleId);
   try {
     const newValue = await redis.incrby(key, quantity);
@@ -62,6 +71,10 @@ export async function reserveInventory(
   quantity: number,
   ttlSeconds: number = 300
 ): Promise<boolean> {
+  if (quantity < REDIS_LIMITS.minQuantity) {
+    return false;
+  }
+
   const inventoryKey = buildInventoryKey(flashSaleId);
   const reservationKey = buildReservationKey(userId, flashSaleId);
 
@@ -101,6 +114,12 @@ export async function releaseReservation(userId: string, flashSaleId: string): P
 export async function joinQueue(flashSaleId: string, userId: string): Promise<number> {
   const key = buildQueueKey(flashSaleId);
   try {
+    const maxQueueLength = REDIS_LIMITS.getMaxQueueLength();
+    const length = await redis.zcard(key);
+    if (length >= maxQueueLength) {
+      return -1;
+    }
+
     const existing = await redis.zrank(key, userId);
     if (existing !== null) {
       return Number(existing) + 1;

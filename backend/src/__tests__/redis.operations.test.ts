@@ -17,6 +17,7 @@ jest.mock('ioredis', () => require('ioredis-mock'));
 describe('redisOperations', () => {
   const flashSaleId = 'sale-1';
   const userId = 'user-1';
+  const originalQueueLimit = process.env.REDIS_MAX_QUEUE_LENGTH;
 
   beforeEach(async () => {
     await redis.flushall();
@@ -24,12 +25,21 @@ describe('redisOperations', () => {
   });
 
   afterAll(async () => {
+    process.env.REDIS_MAX_QUEUE_LENGTH = originalQueueLimit;
     await redis.quit();
   });
 
   it('decrements inventory atomically', async () => {
     const remaining = await decrementInventory(flashSaleId, 2);
     expect(remaining).toBe(8);
+  });
+
+  it('rejects zero or negative quantities', async () => {
+    const zero = await decrementInventory(flashSaleId, 0);
+    expect(zero).toBe(0);
+
+    const negative = await decrementInventory(flashSaleId, -5);
+    expect(negative).toBe(0);
   });
 
   it('prevents decrement when insufficient inventory', async () => {
@@ -79,5 +89,19 @@ describe('redisOperations', () => {
 
     const remainingMembers = await redis.zrange(queueKey, 0, -1);
     expect(remainingMembers).toEqual([secondUser]);
+  });
+
+  it('caps queue length based on configured limit', async () => {
+    const prev = process.env.REDIS_MAX_QUEUE_LENGTH;
+    process.env.REDIS_MAX_QUEUE_LENGTH = '1';
+
+    const cappedSaleId = 'sale-cap';
+    const first = await joinQueue(cappedSaleId, userId);
+    const second = await joinQueue(cappedSaleId, 'user-2');
+
+    expect(first).toBe(1);
+    expect(second).toBe(-1);
+
+    process.env.REDIS_MAX_QUEUE_LENGTH = prev;
   });
 });
