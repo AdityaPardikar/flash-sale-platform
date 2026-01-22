@@ -47,6 +47,42 @@ export async function testRedisConnection(): Promise<boolean> {
   }
 }
 
+export interface RedisHealth {
+  status: 'ok' | 'unhealthy';
+  latencyMs?: number;
+  version?: string;
+  error?: string;
+}
+
+export async function getRedisHealth(): Promise<RedisHealth> {
+  const start = Date.now();
+  try {
+    const response = await redis.ping();
+    const latencyMs = Date.now() - start;
+
+    let version: string | undefined;
+    try {
+      const info = await redis.info('server');
+      const match = info.match(/redis_version:([\d\.]+)/);
+      version = match && match[1] ? match[1] : undefined;
+    } catch (innerError) {
+      version = undefined;
+    }
+
+    return {
+      status: response === 'PONG' ? 'ok' : 'unhealthy',
+      latencyMs,
+      version,
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      latencyMs: Date.now() - start,
+      error: (error as Error).message,
+    };
+  }
+}
+
 export async function closeRedis(): Promise<void> {
   await redis.quit();
 }

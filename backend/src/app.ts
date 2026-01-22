@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { authMiddleware, errorHandler } from './middleware/auth';
 import * as authController from './controllers/authController';
 import { testConnection as testDatabaseConnection } from './utils/database';
-import { testRedisConnection } from './utils/redis';
+import { getRedisHealth, testRedisConnection } from './utils/redis';
 
 const app: Express = express();
 
@@ -34,25 +34,46 @@ app.use(limiter);
 // Health check endpoint
 app.get('/health', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const [dbHealthy, redisHealthy] = await Promise.all([
+    const [dbHealthy, redisHealth] = await Promise.all([
       testDatabaseConnection(),
-      testRedisConnection(),
+      getRedisHealth(),
     ]);
 
     res.json({
-      status: dbHealthy && redisHealthy ? 'ok' : 'degraded',
+      status: dbHealthy && redisHealth.status === 'ok' ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       services: {
         database: dbHealthy ? 'ok' : 'unhealthy',
-        redis: redisHealthy ? 'ok' : 'unhealthy',
+        redis: redisHealth.status,
+      },
+      metrics: {
+        redisLatencyMs: redisHealth.latencyMs,
+        redisVersion: redisHealth.version,
       },
     });
   } catch (error) {
     next(error);
   }
 });
+
+app.get('/health/redis', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const redisHealth = await getRedisHealth();
+    res.json({
+      status: redisHealth.status,
+      latencyMs: redisHealth.latencyMs,
+      version: redisHealth.version,
+      error: redisHealth.error,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const enableDebugRoutes = process.env.ENABLE_DEBUG_ROUTES === 'true';
 
 // API v1 routes
 const apiRouter = Router();
@@ -65,6 +86,25 @@ authRouter.post('/logout', authMiddleware, authController.logout);
 authRouter.post('/refresh', authMiddleware, authController.refreshToken);
 
 apiRouter.use('/auth', authRouter);
+
+if (enableDebugRoutes) {
+  const debugRouter = Router();
+  debugRouter.get('/redis/ping', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const redisHealth = await getRedisHealth();
+      res.json({
+        status: redisHealth.status,
+        latencyMs: redisHealth.latencyMs,
+        version: redisHealth.version,
+        error: redisHealth.error,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  apiRouter.use('/debug', debugRouter);
+}
 
 // Products routes (placeholder)
 apiRouter.get('/products', (req: Request, res: Response) => {
