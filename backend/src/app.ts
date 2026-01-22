@@ -6,6 +6,15 @@ import { authMiddleware, errorHandler } from './middleware/auth';
 import * as authController from './controllers/authController';
 import { testConnection as testDatabaseConnection } from './utils/database';
 import { getRedisHealth, testRedisConnection } from './utils/redis';
+import {
+  decrementInventory,
+  reserveInventory,
+  releaseReservation,
+  joinQueue,
+  leaveQueue,
+  getQueueLength,
+  getQueuePosition,
+} from './utils/redisOperations';
 
 const app: Express = express();
 
@@ -102,6 +111,94 @@ if (enableDebugRoutes) {
       next(error);
     }
   });
+
+  debugRouter.post(
+    '/inventory/reserve',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { flashSaleId, userId, quantity, ttlSeconds } = req.body;
+        if (!flashSaleId || !userId || typeof quantity !== 'number') {
+          return res.status(400).json({ error: 'missing_parameters' });
+        }
+
+        const reserved = await reserveInventory(flashSaleId, userId, quantity, ttlSeconds);
+        res.json({ reserved });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  debugRouter.post(
+    '/inventory/release',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { flashSaleId, userId } = req.body;
+        if (!flashSaleId || !userId) {
+          return res.status(400).json({ error: 'missing_parameters' });
+        }
+
+        const released = await releaseReservation(userId, flashSaleId);
+        res.json({ released });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  debugRouter.post('/queue/join', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { flashSaleId, userId } = req.body;
+      if (!flashSaleId || !userId) {
+        return res.status(400).json({ error: 'missing_parameters' });
+      }
+
+      const position = await joinQueue(flashSaleId, userId);
+      res.json({ position });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  debugRouter.post('/queue/leave', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { flashSaleId, userId } = req.body;
+      if (!flashSaleId || !userId) {
+        return res.status(400).json({ error: 'missing_parameters' });
+      }
+
+      const removed = await leaveQueue(flashSaleId, userId);
+      res.json({ removed });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  debugRouter.get(
+    '/queue/:flashSaleId/length',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { flashSaleId } = req.params;
+        const length = await getQueueLength(flashSaleId);
+        res.json({ length });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  debugRouter.get(
+    '/queue/:flashSaleId/position/:userId',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { flashSaleId, userId } = req.params;
+        const position = await getQueuePosition(flashSaleId, userId);
+        res.json({ position });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
 
   apiRouter.use('/debug', debugRouter);
 }

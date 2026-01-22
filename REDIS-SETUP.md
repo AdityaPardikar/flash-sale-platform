@@ -3,6 +3,7 @@
 ## Overview
 
 Redis is used in this project for:
+
 - **Queue Management**: FIFO queues with sorted sets
 - **Inventory Tracking**: Atomic counters to prevent overselling
 - **Session Storage**: JWT token caching
@@ -11,16 +12,19 @@ Redis is used in this project for:
 ## Installation Options
 
 ### Option 1: Docker (Recommended)
+
 ```bash
 docker compose up -d redis
 ```
 
 ### Option 2: Windows Installation
+
 1. Download Redis from https://github.com/microsoftarchive/redis/releases
 2. Install and run `redis-server.exe`
 3. Default runs on `localhost:6379`
 
 ### Option 3: WSL2 + Redis
+
 ```bash
 wsl --install
 wsl
@@ -30,6 +34,7 @@ sudo service redis-server start
 ```
 
 ### Option 4: Cloud Redis (Upstash, Redis Cloud)
+
 1. Create free Redis instance
 2. Get connection string
 3. Update `.env` file:
@@ -40,6 +45,7 @@ sudo service redis-server start
 ## Redis Data Structures Used
 
 ### 1. Inventory Counter (String)
+
 ```
 Key: inventory:{flash_sale_id}
 Type: String (Integer)
@@ -48,6 +54,7 @@ Operations: GET, DECR, INCRBY
 ```
 
 ### 2. Queue (Sorted Set)
+
 ```
 Key: queue:{flash_sale_id}
 Type: Sorted Set
@@ -57,6 +64,7 @@ Operations: ZADD, ZRANK, ZREM, ZCARD
 ```
 
 ### 3. Reservation (Hash)
+
 ```
 Key: reservation:{user_id}:{flash_sale_id}
 Type: Hash
@@ -68,6 +76,7 @@ TTL: 300 seconds (5 minutes)
 ```
 
 ### 4. Session (String)
+
 ```
 Key: session:{user_id}
 Type: String
@@ -80,12 +89,15 @@ TTL: 86400 seconds (24 hours)
 We use 3 Lua scripts for atomic operations:
 
 ### 1. Decrement Inventory
+
 Atomically decreases inventory count, preventing overselling.
 
-### 2. Increment Inventory  
+### 2. Increment Inventory
+
 Safely returns inventory to available pool with max limit check.
 
 ### 3. Reserve Inventory
+
 Atomically decrements inventory and creates reservation with TTL.
 
 ## Testing Redis Connection
@@ -124,6 +136,7 @@ FLUSHALL
 ## Redis Configuration
 
 Default configuration in `docker-compose.yml`:
+
 - Port: 6379
 - Persistence: AOF (Append-Only File)
 - Memory: Default system limits
@@ -156,23 +169,45 @@ redis-cli SLOWLOG GET 10
 ## Troubleshooting
 
 ### Connection Refused
+
 - Check if Redis is running: `redis-cli ping`
 - Verify port 6379 is not blocked
 - Check firewall settings
 
 ### Memory Issues
+
 - Check memory usage: `redis-cli INFO memory`
 - Review TTL settings on keys
 - Consider maxmemory policy
 
 ### Slow Operations
+
 - Use `SLOWLOG` to identify slow commands
 - Review Lua script efficiency
 - Check for large data structures
 
+## Debug Routes (optional)
+
+Enable debug routes only in local/dev environments:
+
+```bash
+ENABLE_DEBUG_ROUTES=true npm run dev --workspace=backend
+```
+
+Available debug endpoints (when flag is true):
+
+- `GET /api/v1/debug/redis/ping` – returns Redis status, latency, version
+- `POST /api/v1/debug/inventory/reserve` – body: `{ flashSaleId, userId, quantity, ttlSeconds? }`
+- `POST /api/v1/debug/inventory/release` – body: `{ flashSaleId, userId }`
+- `POST /api/v1/debug/queue/join` – body: `{ flashSaleId, userId }`
+- `POST /api/v1/debug/queue/leave` – body: `{ flashSaleId, userId }`
+- `GET /api/v1/debug/queue/:flashSaleId/length`
+- `GET /api/v1/debug/queue/:flashSaleId/position/:userId`
+
 ## Next Steps
 
 Once Redis is running:
+
 1. Test connection with `redis-cli ping`
 2. Run backend server: `npm run dev --workspace=backend`
 3. Test queue operations through API endpoints
