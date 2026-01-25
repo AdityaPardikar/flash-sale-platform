@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Sale Platform - Complete Roadmap Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .roadmap-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 6px solid #667eea;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .roadmap-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .roadmap-card.week-2 {
+            border-left-color: #764ba2;
+        }
+
+        .roadmap-card.week-3 {
+            border-left-color: #f5576c;
+        }
+
+        .roadmap-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .roadmap-card.week-2 h3,
+        .roadmap-card.week-3 h3 {
+            color: #667eea;
+        }
+
+        .roadmap-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 15px 0;
+            padding-bottom: 15px;
+        }
+
+        .meta-item {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .meta-item strong {
+            color: #667eea;
+        }
+
+        .meta-item.duration {
+            color: #555;
+        }
+
+        .meta-item.status {
+            color: #28a745;
+        }
+
+        .description {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .highlights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .highlight-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-top: 3px solid #667eea;
+            font-size: 0.9em;
+        }
+
+        .highlight-item strong {
+            display: block;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .timeline {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .timeline h2 {
+            color: #333;
+            border-bottom-color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 20px;
+        }
+
+        .timeline-date {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .status-complete {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-planned {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-box .number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-box .label {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .quick-links {
+            background: #e3f2fd;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 30px 0;
+            border-left: 6px solid #2196F3;
+        }
+
+        .quick-links h2 {
+            color: #1565c0;
+            border-bottom-color: #2196F3;
+            margin-bottom: 15px;
+        }
+
+        .quick-links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .quick-link-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-top: 3px solid #2196F3;
+        }
+
+        .quick-link-item h4 {
+            color: #1565c0;
+            margin-bottom: 8px;
+        }
+
+        .quick-link-item a {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .quick-link-item a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 2px solid #e0e0e0;
+            color: #666;
+        }
+
+        .footer h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .footer-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .timeline-item {
+                grid-template-columns: 1fr;
+            }
+
+            .highlights {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 Flash Sale Platform</h1>
+            <p>Complete Development Roadmap Hub</p>
+            <p style="margin-top: 10px; font-size: 0.95em;">Weeks 1, 2, and 3 Execution Plan</p>
+        </div>
+
+        <div class="content">
+            <!-- OVERVIEW SECTION -->
+            <div class="section">
+                <h2>📋 Project Overview</h2>
+                <div class="description">
+                    <strong>Flash Sale Platform</strong> is a high-performance e-commerce system designed to handle
+                    flash sales with real-time inventory management, queuing systems, and live order processing. The
+                    project is built with modern technologies (Node.js, React, PostgreSQL, Redis) and follows
+                    enterprise-grade architecture patterns.
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="number">3</div>
+                        <div class="label">Weeks Planned</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">11</div>
+                        <div class="label">Days of Work</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">70+</div>
+                        <div class="label">Hours Dev</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">8000+</div>
+                        <div class="label">Lines of Code</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">70+</div>
+                        <div class="label">API Endpoints</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">100+</div>
+                        <div class="label">Test Cases</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WEEK 1 & 2 SECTION -->
+            <div class="section">
+                <h2>✅ Week 1 & 2 Complete (Foundation & Reorganization)</h2>
+
+                <div class="roadmap-card">
+                    <h3>📚 Week 1 & 2 Combined Roadmap</h3>
+                    <div class="roadmap-meta">
+                        <div class="meta-item duration">
+                            <strong>Duration:</strong> 14 Days
+                        </div>
+                        <div class="meta-item">
+                            <strong>Dates:</strong> Jan 15-25
+                        </div>
+                        <div class="meta-item status">
+                            <strong>Status:</strong> <span class="status-badge status-complete">✅ COMPLETE</span>
+                        </div>
+                    </div>
+
+                    <div class="description">
+                        <strong>Week 1 (Jan 15-24):</strong> Complete infrastructure setup including monorepo, Express
+                        backend, React frontend, PostgreSQL database with 8 tables, Redis with Lua scripts, JWT
+                        authentication, Jest testing, and Docker containerization. <strong>10/10 tests passing.</strong>
+                        <br><br>
+                        <strong>Week 2 (Jan 23-25):</strong> Project reorganization, GitHub integration with 13+ visible
+                        commits, documentation consolidation, and final testing verification.
+                    </div>
+
+                    <div class="highlights">
+                        <div class="highlight-item">
+                            <strong>💾 Database</strong><br>8 tables, 18 indexes
+                        </div>
+                        <div class="highlight-item">
+                            <strong>🔐 Authentication</strong><br>JWT + bcrypt
+                        </div>
+                        <div class="highlight-item">
+                            <strong>⚡ Cache</strong><br>Redis + 3 Lua scripts
+                        </div>
+                        <div class="highlight-item">
+                            <strong>🧪 Tests</strong><br>10/10 passing
+                        </div>
+                        <div class="highlight-item">
+                            <strong>📦 Code</strong><br>3500+ LOC
+                        </div>
+                        <div class="highlight-item">
+                            <strong>🔗 GitHub</strong><br>13+ commits
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <a href="WEEK-1-2-COMPLETE-ROADMAP.html" class="btn btn-primary">📖 View Full Details</a>
+                        <a href="WEEK-1/WEEK-1-COMPLETED.md" class="btn btn-secondary">📝 Week 1 Summary</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WEEK 3 SECTION -->
+            <div class="section">
+                <h2>🎯 Week 3 Roadmap (Core Features)</h2>
+
+                <div class="roadmap-card week-3">
+                    <h3>🚀 Week 3: Core Features & Real-time Systems</h3>
+                    <div class="roadmap-meta">
+                        <div class="meta-item duration">
+                            <strong>Duration:</strong> 7 Days
+                        </div>
+                        <div class="meta-item">
+                            <strong>Dates:</strong> Jan 26-Feb 2
+                        </div>
+                        <div class="meta-item status">
+                            <strong>Status:</strong> <span class="status-badge status-planned">📅 PLANNED</span>
+                        </div>
+                    </div>
+
+                    <div class="description">
+                        <strong>PHASE 1 (Days 1-2):</strong> Flash Sale Service with product management, inventory
+                        system, and sale timing logic.
+                        <br><strong>PHASE 2 (Days 3-4):</strong> Queue System and Order Processing with payment
+                        integration.
+                        <br><strong>PHASE 3 (Days 5-6):</strong> WebSocket real-time communication with event
+                        broadcasting.
+                        <br><strong>PHASE 4 (Day 7):</strong> Integration testing and deployment preparation.
+                    </div>
+
+                    <div class="highlights">
+                        <div class="highlight-item">
+                            <strong>🛠️ Services</strong><br>6 core services
+                        </div>
+                        <div class="highlight-item">
+                            <strong>📡 WebSocket</strong><br>Real-time events
+                        </div>
+                        <div class="highlight-item">
+                            <strong>🎫 Queue</strong><br>FIFO + Priority
+                        </div>
+                        <div class="highlight-item">
+                            <strong>💳 Orders</strong><br>Checkout flow
+                        </div>
+                        <div class="highlight-item">
+                            <strong>📈 Code</strong><br>4000+ LOC
+                        </div>
+                        <div class="highlight-item">
+                            <strong>🧪 Tests</strong><br>40+ tests
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <a href="WEEK-3-ROADMAP.html" class="btn btn-primary">📖 View Week 3 Plan</a>
+                        <a href="#timeline" class="btn btn-secondary">⏱️ Full Timeline</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TIMELINE SECTION -->
+            <div class="timeline" id="timeline">
+                <h2>⏱️ Master Timeline (Weeks 1-3)</h2>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 15-16</div>
+                    <div>
+                        <strong>Week 1, Days 1-2:</strong> Project Initialization<br>
+                        Monorepo, Express, React, ESLint, Docker setup
+                        <span class="status-badge status-complete">✅ COMPLETE</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 20-21</div>
+                    <div>
+                        <strong>Week 1, Days 3-4:</strong> Database Schema & Migrations<br>
+                        8 tables, 18 indexes, migrations, seed data
+                        <span class="status-badge status-complete">✅ COMPLETE</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 22-23</div>
+                    <div>
+                        <strong>Week 1, Days 5-6:</strong> Redis & Testing<br>
+                        3 Lua scripts, Redis operations, comprehensive tests
+                        <span class="status-badge status-complete">✅ COMPLETE</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 24</div>
+                    <div>
+                        <strong>Week 1, Day 7:</strong> Testing & Documentation<br>
+                        10/10 tests passing, comprehensive docs, README
+                        <span class="status-badge status-complete">✅ COMPLETE</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 23-25</div>
+                    <div>
+                        <strong>Week 2:</strong> Project Reorganization & GitHub<br>
+                        File structure, GitHub integration, documentation consolidation
+                        <span class="status-badge status-complete">✅ COMPLETE</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 26-27</div>
+                    <div>
+                        <strong>Week 3, Days 1-2:</strong> Flash Sale Service<br>
+                        ProductService, FlashSaleService, InventoryManager (1160+ LOC)
+                        <span class="status-badge status-planned">📅 PLANNED</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 28-29</div>
+                    <div>
+                        <strong>Week 3, Days 3-4:</strong> Queue & Orders<br>
+                        QueueService, OrderService, PaymentProcessor (1250+ LOC)
+                        <span class="status-badge status-planned">📅 PLANNED</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 30-31</div>
+                    <div>
+                        <strong>Week 3, Days 5-6:</strong> Real-time Communication<br>
+                        Socket.IO, EventBroadcaster, Notifications (980+ LOC)
+                        <span class="status-badge status-planned">📅 PLANNED</span>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-date">Feb 1-2</div>
+                    <div>
+                        <strong>Week 3, Day 7:</strong> Integration & Deployment<br>
+                        Full test suite, load testing, deployment prep
+                        <span class="status-badge status-planned">📅 PLANNED</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUICK LINKS SECTION -->
+            <div class="quick-links">
+                <h2>🔗 Quick Links & Documentation</h2>
+                <div class="quick-links-grid">
+                    <div class="quick-link-item">
+                        <h4>📖 Week 1 & 2</h4>
+                        <p style="font-size: 0.9em; margin-bottom: 8px;">Complete roadmap with all deliverables</p>
+                        <a href="WEEK-1-2-COMPLETE-ROADMAP.html">View Details →</a>
+                    </div>
+                    <div class="quick-link-item">
+                        <h4>🎯 Week 3 Plan</h4>
+                        <p style="font-size: 0.9em; margin-bottom: 8px;">Strategic roadmap for core features</p>
+                        <a href="WEEK-3-ROADMAP.html">View Details →</a>
+                    </div>
+                    <div class="quick-link-item">
+                        <h4>🏗️ Architecture</h4>
+                        <p style="font-size: 0.9em; margin-bottom: 8px;">System design and component architecture</p>
+                        <a href="../Project_Details/ARCHITECTURE.md">View Docs →</a>
+                    </div>
+                    <div class="quick-link-item">
+                        <h4>📝 Week 1 Summary</h4>
+                        <p style="font-size: 0.9em; margin-bottom: 8px;">Detailed week 1 completion report</p>
+                        <a href="WEEK-1/WEEK-1-COMPLETED.md">View Summary →</a>
+                    </div>
+                    <div class="quick-link-item">
+                        <h4>💻 GitHub Repo</h4>
+                        <p style="font-size: 0.9em; margin-bottom: 8px;">View all commits and code</p>
+                        <a href="https://github.com/AdityaPardikar/flash-sale-platform" target="_blank">Visit →</a>
+                    </div>
+                    <div class="quick-link-item">
+                        <h4>📚 Project Structure</h4>
+                        <p style="font-size: 0.9em; margin-bottom: 8px;">File organization and navigation</p>
+                        <a href="../PROJECT-STRUCTURE.md">View Guide →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUMMARY STATS -->
+            <div class="section">
+                <h2>📊 Project Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="number">16</div>
+                        <div class="label">Git Commits</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">8</div>
+                        <div class="label">Database Tables</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">70+</div>
+                        <div class="label">API Endpoints</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">8000+</div>
+                        <div class="label">Lines of Code</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">100+</div>
+                        <div class="label">Test Cases</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="number">75%+</div>
+                        <div class="label">Code Coverage</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <h3>Flash Sale Platform - Professional Development Roadmap</h3>
+            <p style="margin: 15px 0;">
+                Generated: January 25, 2026<br>
+                Weeks 1 & 2 Complete | Week 3 Ready for Execution<br>
+                <a href="https://github.com/AdityaPardikar/flash-sale-platform" class="footer-link"
+                    target="_blank">GitHub Repository</a> |
+                <a href="../../" class="footer-link">Project Root</a>
+            </p>
+            <p style="margin-top: 15px; font-size: 0.85em; opacity: 0.8;">
+                Built with Node.js • React • PostgreSQL • Redis • TypeScript
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
