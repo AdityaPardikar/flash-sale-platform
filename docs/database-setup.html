@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Setup Instructions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 1.6em;
+            margin: 30px 0 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.2em;
+            margin: 20px 0 15px;
+        }
+
+        .option-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .option-box h3 {
+            margin-top: 0;
+        }
+
+        ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 0.9em;
+        }
+
+        .success-box {
+            background: #c8e6c9;
+            border-left: 4px solid #2e7d32;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            color: #1b5e20;
+        }
+
+        .success-box strong {
+            color: #2e7d32;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            color: #0d47a1;
+        }
+
+        .steps-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .steps-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .steps-list li:before {
+            content: "✓ ";
+            color: #2e7d32;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 2px solid #e0e0e0;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ Database Setup Instructions</h1>
+            <p>PostgreSQL Configuration Guide</p>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <strong>Note:</strong> Choose one of the three options below based on your environment and preferences.
+            </div>
+
+            <h2>Installation Options</h2>
+
+            <div class="option-box">
+                <h3>⭐ Option 1: Docker Desktop (Recommended)</h3>
+                <p>This is the easiest and most consistent way to set up your database.</p>
+                <ol>
+                    <li>Download Docker Desktop for Windows from <a
+                            href="https://www.docker.com/products/docker-desktop/" target="_blank">docker.com</a></li>
+                    <li>Install and restart your computer</li>
+                    <li>Run: <code>docker compose up -d</code> in the project directory</li>
+                    <li>Run migrations: <code>npm run migrate --workspace=backend</code></li>
+                    <li>Run seed data: <code>npm run seed --workspace=backend</code></li>
+                </ol>
+                <div class="success-box">
+                    <strong>✓ Advantages:</strong> Isolated environment, easy cleanup, reproducible setup
+                </div>
+            </div>
+
+            <div class="option-box">
+                <h3>💻 Option 2: Local PostgreSQL Installation</h3>
+                <p>Install PostgreSQL directly on your system.</p>
+                <ol>
+                    <li>Install PostgreSQL 16 from <a href="https://www.postgresql.org/download/windows/"
+                            target="_blank">postgresql.org</a></li>
+                    <li>During installation, set password to <code>flash_password</code></li>
+                    <li>Create database: <code>createdb -U postgres flash_sale_db</code></li>
+                    <li>Create user with SQL:
+                        <div class="code-block">CREATE USER flash_user WITH PASSWORD 'flash_password';
+                            GRANT ALL PRIVILEGES ON DATABASE flash_sale_db TO flash_user;</div>
+                    </li>
+                    <li>Update <code>.env</code> file in backend with your PostgreSQL connection details</li>
+                    <li>Run migrations: <code>npm run migrate --workspace=backend</code></li>
+                    <li>Run seed data: <code>npm run seed --workspace=backend</code></li>
+                </ol>
+                <div class="success-box">
+                    <strong>✓ Advantages:</strong> Full control, persistent data, no Docker required
+                </div>
+            </div>
+
+            <div class="option-box">
+                <h3>☁️ Option 3: Cloud PostgreSQL</h3>
+                <p>Use a managed PostgreSQL service from a cloud provider.</p>
+                <ol>
+                    <li>Create a free PostgreSQL instance on any cloud provider:
+                        <ul>
+                            <li><a href="https://www.elephantsql.com/" target="_blank">ElephantSQL</a></li>
+                            <li><a href="https://supabase.com/" target="_blank">Supabase</a></li>
+                            <li><a href="https://www.digitalocean.com/" target="_blank">DigitalOcean</a></li>
+                        </ul>
+                    </li>
+                    <li>Get the connection string from the provider</li>
+                    <li>Update <code>.env</code> file in backend:
+                        <div class="code-block">DATABASE_URL=postgresql://user:pass@host:port/dbname</div>
+                    </li>
+                    <li>Run migrations: <code>npm run migrate --workspace=backend</code></li>
+                    <li>Run seed data: <code>npm run seed --workspace=backend</code></li>
+                </ol>
+                <div class="success-box">
+                    <strong>✓ Advantages:</strong> No local setup, managed backups, accessible from anywhere
+                </div>
+            </div>
+
+            <h2>✅ Database Components Created</h2>
+
+            <div class="success-box">
+                <h3>🎯 Migration Scripts</h3>
+                <ul class="steps-list">
+                    <li>All 8 database tables with proper indexes</li>
+                    <li>Foreign key relationships configured</li>
+                    <li>UUID primary keys for scalability</li>
+                </ul>
+            </div>
+
+            <div class="success-box">
+                <h3>🌱 Seed Data Script</h3>
+                <ul class="steps-list">
+                    <li>5 test users (password: <code>password123</code>)</li>
+                    <li>8 products across multiple categories</li>
+                    <li>5 flash sales (1 active, 4 upcoming)</li>
+                    <li>Sample queue entries, orders, and analytics</li>
+                </ul>
+            </div>
+
+            <div class="success-box">
+                <h3>🔧 NPM Scripts Available</h3>
+                <div class="code-block">npm run migrate --workspace=backend # Run all migrations
+                    npm run seed --workspace=backend # Populate with test data
+                    npm run dev --workspace=backend # Start dev server</div>
+            </div>
+
+            <h2>🚀 Getting Started</h2>
+
+            <div class="option-box">
+                <h3>Step-by-Step Setup</h3>
+                <ol>
+                    <li>Complete one of the installation options above</li>
+                    <li>Verify PostgreSQL is running on localhost:5432 (default port)</li>
+                    <li>Run migrations: <code>npm run migrate --workspace=backend</code></li>
+                    <li>Add test data: <code>npm run seed --workspace=backend</code></li>
+                    <li>Start the API server: <code>npm run dev --workspace=backend</code></li>
+                    <li>Test endpoints at <code>http://localhost:3000</code></li>
+                </ol>
+            </div>
+
+            <h2>📋 Database Tables</h2>
+
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr style="background: #667eea; color: white;">
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Table</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Purpose</th>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>users</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">User accounts and authentication</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>products</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">Product catalog</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>flash_sales</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">Flash sale events</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>queue_entries</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">User queue positions</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>orders</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">Completed orders</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>inventories</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">Real-time stock tracking</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>analytics</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">Performance metrics</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 12px; border: 1px solid #ddd;"><code>audit_logs</code></td>
+                    <td style="padding: 12px; border: 1px solid #ddd;">Activity tracking</td>
+                </tr>
+            </table>
+
+            <h2>🐛 Troubleshooting</h2>
+
+            <div class="info-box">
+                <strong>Connection Error?</strong> Make sure PostgreSQL is running and the connection string in your
+                <code>.env</code> file is correct.
+            </div>
+
+            <div class="info-box">
+                <strong>Migration Failed?</strong> Check that all database tables don't already exist, or run
+                <code>DROP DATABASE flash_sale_db</code> first.
+            </div>
+
+            <div class="info-box">
+                <strong>No Test Data?</strong> Run <code>npm run seed --workspace=backend</code> after migrations
+                complete.
+            </div>
+        </div>
+
+        <div class="footer">
+            <h3>Database Setup Guide</h3>
+            <p>Flash Sale Platform - PostgreSQL Configuration</p>
+            <p>Last Updated: January 25, 2026</p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Sale Platform - Project Structure Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 1.6em;
+            margin: 30px 0 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.2em;
+            margin: 20px 0 15px;
+        }
+
+        .file-tree {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .folder {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .file {
+            color: #333;
+        }
+
+        .comment {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .box h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .badge-important {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .badge-info {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 2px solid #e0e0e0;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 Flash Sale Platform - Project Structure Guide</h1>
+        </div>
+
+        <div class="content">
+            <div class="box">
+                <h4>Last Updated: January 25, 2026</h4>
+                <p>Complete guide to the Flash Sale Platform project organization and file structure.</p>
+            </div>
+
+            <h2>🗂️ Root Level</h2>
+
+            <div class="file-tree"><span class="folder">c:\PROJECT\FFLASH SALE PLATFORM\</span>
+                ├── <span class="file">README.md</span> <span class="comment"># GitHub profile README</span>
+                ├── <span class="folder">docs/</span> <span class="comment"># All project documentation</span>
+                └── <span class="folder">flash-sale-platform/</span> <span class="comment"># Main application
+                    code</span></div>
+
+            <h2>📚 Documentation (/docs)</h2>
+
+            <h3>Project Details</h3>
+
+            <div class="file-tree"><span class="folder">docs/Project_Details/</span>
+                ├── <span class="file">ABOUT.md</span> <span class="comment"># Project overview</span>
+                ├── <span class="file">ARCHITECTURE.md</span> <span class="comment"># High-level architecture</span>
+                ├── <span class="file">DETAILED COMPONENT ARCHITECTURE.md</span>
+                ├── <span class="file">RESUME DESCRIPTION.md</span> <span class="comment"># For resume/portfolio</span>
+                ├── <span class="file">ROADMAP.md</span> <span class="comment"># Complete project roadmap</span>
+                ├── <span class="file">SYSTEM ARCHITECTURE.md</span> <span class="comment"># System design
+                    details</span>
+                └── <span class="file">TECH STACK DETAILS.md</span> <span class="comment"># Technology choices</span>
+            </div>
+
+            <h3>Roadmap & Progress</h3>
+
+            <div class="file-tree"><span class="folder">docs/ROADMAP/</span>
+                ├── <span class="file">00-ROADMAP-HUB.html</span> <span class="comment"># Central navigation</span>
+                ├── <span class="file">WEEK-1-2-COMPLETE-ROADMAP.html</span> <span class="comment"># Weeks 1-2
+                    complete</span>
+                ├── <span class="file">WEEK-3-ROADMAP.html</span> <span class="comment"># Week 3 plan</span>
+                ├── <span class="file">index.html</span> <span class="comment"># Navigation hub</span>
+                ├── <span class="file">readme.html</span> <span class="comment"># README as HTML</span>
+                ├── <span class="file">weeks-summary.html</span> <span class="comment"># Summary as HTML</span>
+                ├── <span class="file">WEEKS-1-3-COMPLETE-SUMMARY.md</span>
+                └── <span class="folder">WEEK-1/</span>
+                ├── <span class="file">WEEK-1-COMPLETED.md</span> <span class="comment"># ✅ Consolidated report</span>
+                ├── <span class="file">WEEK-1-OVERVIEW.md</span>
+                └── <span class="file">WEEK-1-PROGRESS-TRACKER.md</span></div>
+
+            <h2>💻 Application Code (/flash-sale-platform)</h2>
+
+            <h3>Backend</h3>
+
+            <div class="file-tree"><span class="folder">backend/</span>
+                ├── <span class="file">package.json</span> <span class="comment"># Dependencies</span>
+                ├── <span class="file">tsconfig.json</span> <span class="comment"># TypeScript config</span>
+                ├── <span class="file">jest.config.js</span> <span class="comment"># Testing config</span>
+                └── <span class="folder">src/</span>
+                ├── <span class="file">app.ts</span> <span class="comment"># Express server (15+ routes)</span>
+                ├── <span class="folder">controllers/</span> <span class="comment"># API controllers</span>
+                │ └── <span class="file">authController.ts</span>
+                ├── <span class="folder">services/</span> <span class="comment"># Business logic</span>
+                │ └── <span class="file">authService.ts</span>
+                ├── <span class="folder">middleware/</span> <span class="comment"># Express middleware</span>
+                │ └── <span class="file">auth.ts</span>
+                ├── <span class="folder">models/</span> <span class="comment"># TypeScript types</span>
+                │ └── <span class="file">index.ts</span>
+                ├── <span class="folder">utils/</span> <span class="comment"># Helper utilities</span>
+                │ ├── <span class="file">database.ts</span> <span class="comment"># PostgreSQL</span>
+                │ ├── <span class="file">redis.ts</span> <span class="comment"># Redis client</span>
+                │ ├── <span class="file">jwt.ts</span> <span class="comment"># JWT tokens</span>
+                │ └── <span class="file">migrations.ts</span> <span class="comment"># DB migrations</span>
+                ├── <span class="folder">config/</span> <span class="comment"># Configuration</span>
+                │ └── <span class="file">redisKeys.ts</span> <span class="comment"># Redis patterns</span>
+                ├── <span class="folder">redis/</span> <span class="comment"># Redis operations</span>
+                │ ├── <span class="file">luaLoader.ts</span>
+                │ └── <span class="folder">lua/</span> <span class="comment"># 3 Lua scripts</span>
+                │ ├── <span class="file">decrementInventory.lua</span>
+                │ ├── <span class="file">reserveInventory.lua</span>
+                │ └── <span class="file">releaseReservation.lua</span>
+                ├── <span class="folder">scripts/</span> <span class="comment"># Automation scripts</span>
+                │ ├── <span class="file">runMigrations.ts</span>
+                │ ├── <span class="file">seedData.ts</span>
+                │ └── <span class="file">verifyDatabase.ts</span>
+                └── <span class="folder">__tests__/</span> <span class="comment"># Test suites</span>
+                ├── <span class="file">auth.controller.test.ts</span> <span class="comment"># 8 tests ✅</span>
+                └── <span class="file">redis.operations.test.ts</span> <span class="comment"># 7 tests ✅</span></div>
+
+            <h3>Frontend</h3>
+
+            <div class="file-tree"><span class="folder">frontend/</span>
+                ├── <span class="file">package.json</span> <span class="comment"># Dependencies</span>
+                ├── <span class="file">tsconfig.json</span> <span class="comment"># TypeScript config</span>
+                ├── <span class="file">vite.config.ts</span> <span class="comment"># Build config</span>
+                ├── <span class="file">index.html</span> <span class="comment"># Entry point</span>
+                └── <span class="folder">src/</span>
+                ├── <span class="file">main.tsx</span> <span class="comment"># React entry</span>
+                ├── <span class="file">App.tsx</span> <span class="comment"># Main component</span>
+                ├── <span class="file">index.css</span> <span class="comment"># Tailwind styles</span>
+                ├── <span class="folder">components/</span> <span class="comment"># React components</span>
+                ├── <span class="folder">hooks/</span> <span class="comment"># Custom hooks</span>
+                │ └── <span class="file">useSocket.ts</span> <span class="comment"># WebSocket hook</span>
+                ├── <span class="folder">pages/</span> <span class="comment"># Page components</span>
+                └── <span class="folder">services/</span> <span class="comment"># API services</span>
+                └── <span class="file">api.ts</span> <span class="comment"># Axios client</span></div>
+
+            <h3>Root Files</h3>
+
+            <div class="file-tree"><span class="folder">flash-sale-platform/</span>
+                ├── <span class="file">package.json</span> <span class="comment"># Monorepo root</span>
+                ├── <span class="file">tsconfig.json</span> <span class="comment"># Root TypeScript</span>
+                ├── <span class="file">README.md</span> <span class="comment"># Project README</span>
+                ├── <span class="file">Dockerfile</span> <span class="comment"># Container config</span>
+                ├── <span class="file">docker-compose.yml</span> <span class="comment"># Multi-service</span>
+                ├── <span class="folder">docs/</span> <span class="comment"># Project docs</span>
+                ├── <span class="folder">backend/</span> <span class="comment"># Backend service</span>
+                └── <span class="folder">frontend/</span> <span class="comment"># Frontend service</span></div>
+
+            <h2>📊 Directory Summary</h2>
+
+            <table>
+                <tr>
+                    <th>Directory</th>
+                    <th>Purpose</th>
+                    <th>Key Files</th>
+                </tr>
+                <tr>
+                    <td><code>docs/</code></td>
+                    <td>All documentation</td>
+                    <td>Architecture, Roadmaps, Tech Stack</td>
+                </tr>
+                <tr>
+                    <td><code>backend/src/</code></td>
+                    <td>Express API server</td>
+                    <td>Controllers, Services, Utilities</td>
+                </tr>
+                <tr>
+                    <td><code>frontend/src/</code></td>
+                    <td>React application</td>
+                    <td>Components, Pages, Hooks</td>
+                </tr>
+                <tr>
+                    <td><code>backend/src/redis/</code></td>
+                    <td>Redis operations</td>
+                    <td>3 Lua scripts</td>
+                </tr>
+                <tr>
+                    <td><code>backend/__tests__/</code></td>
+                    <td>Test suites</td>
+                    <td>Auth & Redis tests (10/10 passing)</td>
+                </tr>
+            </table>
+
+            <h2>🔑 Important Files</h2>
+
+            <div class="box">
+                <h4>Configuration</h4>
+                <ul>
+                    <li><strong>tsconfig.json</strong> - TypeScript compiler options</li>
+                    <li><strong>jest.config.js</strong> - Test runner configuration</li>
+                    <li><strong>vite.config.ts</strong> - Frontend build tool</li>
+                    <li><strong>package.json</strong> - Dependencies and scripts</li>
+                </ul>
+            </div>
+
+            <div class="box">
+                <h4>Database & Cache</h4>
+                <ul>
+                    <li><strong>backend/src/utils/database.ts</strong> - PostgreSQL connection</li>
+                    <li><strong>backend/src/utils/redis.ts</strong> - Redis client</li>
+                    <li><strong>backend/src/utils/migrations.ts</strong> - 8 database tables</li>
+                    <li><strong>backend/src/redis/lua/</strong> - 3 atomic Lua scripts</li>
+                </ul>
+            </div>
+
+            <div class="box">
+                <h4>API & Authentication</h4>
+                <ul>
+                    <li><strong>backend/src/app.ts</strong> - Express server with 15+ routes</li>
+                    <li><strong>backend/src/controllers/authController.ts</strong> - Auth endpoints</li>
+                    <li><strong>backend/src/utils/jwt.ts</strong> - JWT token management</li>
+                    <li><strong>backend/src/middleware/auth.ts</strong> - Auth middleware</li>
+                </ul>
+            </div>
+
+            <h2>📈 Code Statistics</h2>
+
+            <table>
+                <tr>
+                    <th>Component</th>
+                    <th>Files</th>
+                    <th>Lines of Code</th>
+                </tr>
+                <tr>
+                    <td>Backend Core</td>
+                    <td>25+</td>
+                    <td>2,500+</td>
+                </tr>
+                <tr>
+                    <td>Frontend</td>
+                    <td>15+</td>
+                    <td>800+</td>
+                </tr>
+                <tr>
+                    <td>Tests</td>
+                    <td>3</td>
+                    <td>300+</td>
+                </tr>
+                <tr>
+                    <td>Configuration</td>
+                    <td>8</td>
+                    <td>200+</td>
+                </tr>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>50+</strong></td>
+                    <td><strong>3,800+</strong></td>
+                </tr>
+            </table>
+
+            <h2>🚀 Getting Started</h2>
+
+            <div class="box">
+                <h4>1. Installation</h4>
+                <ul>
+                    <li>Install dependencies: <code>npm install</code></li>
+                    <li>Set up environment: Copy <code>.env.example</code> to <code>.env</code></li>
+                </ul>
+
+                <h4>2. Running the Project</h4>
+                <ul>
+                    <li>Start dev servers: <code>npm run dev</code></li>
+                    <li>Backend runs on: <code>http://localhost:3000</code></li>
+                    <li>Frontend runs on: <code>http://localhost:5173</code></li>
+                </ul>
+
+                <h4>3. Testing</h4>
+                <ul>
+                    <li>Run tests: <code>npm test</code></li>
+                    <li>Expected: <code>10/10 tests passing (100%)</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <h3>Flash Sale Platform - Project Structure</h3>
+            <p>Last Updated: January 25, 2026</p>
+            <p>Professional file organization for scalable development</p>
+        </div>
+    </div>
+</body>
+
+</html>
