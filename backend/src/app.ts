@@ -15,6 +15,8 @@ import {
   getQueueLength,
   getQueuePosition,
 } from './utils/redisOperations';
+import productRoutes from './routes/productRoutes';
+import flashSaleRoutes from './routes/flashSaleRoutes';
 
 const app: Express = express();
 
@@ -203,15 +205,21 @@ if (enableDebugRoutes) {
   apiRouter.use('/debug', debugRouter);
 }
 
-// Products routes (placeholder)
-apiRouter.get('/products', (req: Request, res: Response) => {
+// Products routes
+apiRouter.use('/products', productRoutes);
+
+// Flash sales routes
+apiRouter.use('/flash-sales', flashSaleRoutes);
+
+// Products routes (placeholder - for backward compatibility)
+apiRouter.get('/products-legacy', (req: Request, res: Response) => {
   res.json({
     message: 'Products endpoint - Week 2 implementation',
     data: [],
   });
 });
 
-apiRouter.get('/products/:id', (req: Request, res: Response) => {
+apiRouter.get('/products-legacy/:id', (req: Request, res: Response) => {
   const { id } = req.params;
   res.json({
     message: 'Product details - Week 2 implementation',
@@ -219,13 +227,7 @@ apiRouter.get('/products/:id', (req: Request, res: Response) => {
   });
 });
 
-// Flash sales routes (placeholder)
-apiRouter.get('/flash-sales', (req: Request, res: Response) => {
-  res.json({
-    message: 'Flash sales endpoint - Week 2 implementation',
-    data: [],
-  });
-});
+// Flash sales legacy routes (placeholder - removed, now using main routes)
 
 // Queue routes (placeholder)
 apiRouter.post('/queue/join', authMiddleware, (req: Request, res: Response) => {
