@@ -1,4 +1,4 @@
-import { pool } from '../utils/database';
+import pool from '../utils/database';
 import { Product } from '../models';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -30,7 +30,7 @@ export class ProductService {
     offset?: number;
   }): Promise<Product[]> {
     let query = 'SELECT * FROM products WHERE 1=1';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     let paramCount = 1;
 
     if (options?.category) {
@@ -120,7 +120,7 @@ export class ProductService {
 
     // Build dynamic update query
     const updates: string[] = [];
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     let paramCount = 1;
 
     if (data.name !== undefined) {

@@ -1,11 +1,11 @@
 import productService, { CreateProductDto, UpdateProductDto } from '../services/productService';
 import flashSaleService, { CreateFlashSaleDto } from '../services/flashSaleService';
 import inventoryManager from '../services/inventoryManager';
-import { pool } from '../utils/database';
+import pool from '../utils/database';
 
 // Mock database module
 jest.mock('../utils/database', () => ({
-  pool: {
+  default: {
     query: jest.fn(),
   },
 }));

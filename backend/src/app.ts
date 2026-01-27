@@ -17,6 +17,8 @@ import {
 } from './utils/redisOperations';
 import productRoutes from './routes/productRoutes';
 import flashSaleRoutes from './routes/flashSaleRoutes';
+import { backgroundJobRunner } from './services/backgroundJobRunner';
+import flashSaleService from './services/flashSaleService';
 
 const app: Express = express();
 
@@ -270,7 +272,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║   Flash Sale Platform - Backend API    ║
@@ -281,6 +283,26 @@ app.listen(PORT, () => {
 ║ ✓ Health: http://localhost:${PORT}/health      ║
 ╚════════════════════════════════════════╝
   `);
+
+  // Warm up cache
+  await flashSaleService.warmCache();
+
+  // Start background jobs
+  backgroundJobRunner.start();
+  console.log('✓ Background jobs started');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing server');
+  backgroundJobRunner.stop();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing server');
+  backgroundJobRunner.stop();
+  process.exit(0);
 });
 
 export default app;

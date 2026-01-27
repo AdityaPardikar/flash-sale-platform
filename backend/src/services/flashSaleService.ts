@@ -1,7 +1,8 @@
-import { pool } from '../utils/database';
+import pool from '../utils/database';
 import { FlashSale } from '../models';
 import { v4 as uuidv4 } from 'uuid';
 import redisClient from '../utils/redis';
+import { saleTimingService } from './saleTimingService';
 
 export interface CreateFlashSaleDto {
   product_id: string;
@@ -255,7 +256,7 @@ export class FlashSaleService {
     );
 
     // Refresh Redis cache with current active sales
-    await this.refreshActiveS alesCache();
+    await this.refreshActiveSalesCache();
   }
 
   /**
@@ -347,10 +348,9 @@ export class FlashSaleService {
    */
   private async validateFlashSaleData(data: CreateFlashSaleDto): Promise<void> {
     // Check if product exists
-    const productResult = await pool.query(
-      'SELECT id, base_price FROM products WHERE id = $1',
-      [data.product_id]
-    );
+    const productResult = await pool.query('SELECT id, base_price FROM products WHERE id = $1', [
+      data.product_id,
+    ]);
 
     if (productResult.rows.length === 0) {
       throw new Error('Product not found');
@@ -403,12 +403,22 @@ export class FlashSaleService {
   }
 
   /**
-   * Cache active sale in Redis
+   * Cache active sale in Redis with intelligent TTL
    */
   private async cacheActiveSale(sale: FlashSale): Promise<void> {
     const key = `sale:${sale.id}`;
-    await redisClient.setex(key, 3600, JSON.stringify(sale)); // Cache for 1 hour
+
+    // Calculate TTL based on sale end time
+    const now = new Date();
+    const endTime = new Date(sale.end_time);
+    const remainingSeconds = Math.floor((endTime.getTime() - now.getTime()) / 1000);
+
+    // Use remaining time or max 1 hour, whichever is smaller
+    const ttl = Math.min(remainingSeconds > 0 ? remainingSeconds : 3600, 3600);
+
+    await redisClient.setex(key, ttl, JSON.stringify(sale));
     await redisClient.sadd('active_sales', sale.id);
+    await redisClient.expire('active_sales', ttl);
   }
 
   /**
@@ -433,6 +443,72 @@ export class FlashSaleService {
     for (const sale of activeSales) {
       await this.cacheActiveSale(sale);
     }
+  }
+
+  /**
+   * Warm up cache on server start
+   */
+  async warmCache(): Promise<void> {
+    console.log('Warming up flash sales cache...');
+
+    try {
+      // Cache active sales
+      const activeSales = await this.getActiveFlashSales();
+      for (const sale of activeSales) {
+        await this.cacheActiveSale(sale);
+      }
+
+      // Cache upcoming sales (next 24 hours)
+      const upcomingSales = await this.getUpcomingFlashSales();
+      const next24Hours = new Date();
+      next24Hours.setHours(next24Hours.getHours() + 24);
+
+      for (const sale of upcomingSales) {
+        const saleStart = new Date(sale.start_time);
+        if (saleStart <= next24Hours) {
+          const key = `sale:upcoming:${sale.id}`;
+          await redisClient.setex(key, 3600, JSON.stringify(sale)); // Cache for 1 hour
+        }
+      }
+
+      console.log(
+        `Cached ${activeSales.length} active sales and ${upcomingSales.length} upcoming sales`
+      );
+    } catch (error) {
+      console.error('Error warming cache:', error);
+    }
+  }
+
+  /**
+   * Get cached active sale or fetch from DB
+   */
+  async getCachedSale(saleId: string): Promise<FlashSale | null> {
+    try {
+      // Try to get from cache first
+      const cachedData = await redisClient.get(`sale:${saleId}`);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+
+      // Fallback to database
+      const sale = await this.getFlashSaleById(saleId);
+      if (sale && sale.status === 'active') {
+        await this.cacheActiveSale(sale);
+      }
+
+      return sale;
+    } catch (error) {
+      console.error('Error getting cached sale:', error);
+      return await this.getFlashSaleById(saleId);
+    }
+  }
+
+  /**
+   * Invalidate cache for a sale
+   */
+  async invalidateCache(saleId: string): Promise<void> {
+    await this.removeFromCache(saleId);
+    await redisClient.del(`sale:upcoming:${saleId}`);
   }
 }
 

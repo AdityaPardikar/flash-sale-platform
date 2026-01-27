@@ -1,6 +1,6 @@
 import redisClient from '../utils/redis';
-import { pool } from '../utils/database';
-import { redisKeys } from '../config/redisKeys';
+import pool from '../utils/database';
+import { buildInventoryKey, buildReservationKey } from '../config/redisKeys';
 
 export interface InventoryReservation {
   saleId: string;
@@ -16,7 +16,7 @@ export class InventoryManager {
    * Initialize inventory for a flash sale in Redis
    */
   async initializeSaleInventory(saleId: string, quantity: number): Promise<void> {
-    const key = redisKeys.inventory(saleId);
+    const key = buildInventoryKey(saleId);
     await redisClient.set(key, quantity.toString());
   }
 
@@ -24,7 +24,7 @@ export class InventoryManager {
    * Get current available inventory for a sale
    */
   async getAvailableInventory(saleId: string): Promise<number> {
-    const key = redisKeys.inventory(saleId);
+    const key = buildInventoryKey(saleId);
     const value = await redisClient.get(key);
 
     if (value === null) {
@@ -53,8 +53,8 @@ export class InventoryManager {
     userId: string,
     quantity: number = 1
   ): Promise<{ success: boolean; remaining: number }> {
-    const inventoryKey = redisKeys.inventory(saleId);
-    const reservationKey = redisKeys.reservation(saleId, userId);
+    const inventoryKey = buildInventoryKey(saleId);
+    const reservationKey = buildReservationKey(userId, saleId);
 
     // Check if user already has a reservation
     const existingReservation = await redisClient.get(reservationKey);
@@ -108,7 +108,7 @@ export class InventoryManager {
    * Release a reservation (user cancelled or reservation expired)
    */
   async releaseReservation(saleId: string, userId: string): Promise<boolean> {
-    const reservationKey = redisKeys.reservation(saleId, userId);
+    const reservationKey = buildReservationKey(userId, saleId);
     const reservationData = await redisClient.get(reservationKey);
 
     if (!reservationData) {
@@ -116,7 +116,7 @@ export class InventoryManager {
     }
 
     const reservation: InventoryReservation = JSON.parse(reservationData);
-    const inventoryKey = redisKeys.inventory(saleId);
+    const inventoryKey = buildInventoryKey(saleId);
 
     // Return inventory
     await redisClient.incrby(inventoryKey, reservation.quantity);
@@ -131,7 +131,7 @@ export class InventoryManager {
    * Confirm a purchase (move from reservation to sold)
    */
   async confirmPurchase(saleId: string, userId: string): Promise<boolean> {
-    const reservationKey = redisKeys.reservation(saleId, userId);
+    const reservationKey = buildReservationKey(userId, saleId);
     const reservationData = await redisClient.get(reservationKey);
 
     if (!reservationData) {
@@ -154,7 +154,7 @@ export class InventoryManager {
    * Get user's current reservation for a sale
    */
   async getUserReservation(saleId: string, userId: string): Promise<InventoryReservation | null> {
-    const reservationKey = redisKeys.reservation(saleId, userId);
+    const reservationKey = buildReservationKey(userId, saleId);
     const reservationData = await redisClient.get(reservationKey);
 
     if (!reservationData) {
@@ -168,7 +168,7 @@ export class InventoryManager {
    * Check if user has an active reservation
    */
   async hasActiveReservation(saleId: string, userId: string): Promise<boolean> {
-    const reservationKey = redisKeys.reservation(saleId, userId);
+    const reservationKey = buildReservationKey(userId, saleId);
     const exists = await redisClient.exists(reservationKey);
     return exists === 1;
   }
@@ -177,7 +177,7 @@ export class InventoryManager {
    * Get reservation time remaining
    */
   async getReservationTTL(saleId: string, userId: string): Promise<number> {
-    const reservationKey = redisKeys.reservation(saleId, userId);
+    const reservationKey = buildReservationKey(userId, saleId);
     const ttl = await redisClient.ttl(reservationKey);
     return ttl;
   }
@@ -295,4 +295,6 @@ export class InventoryManager {
   }
 }
 
-export default new InventoryManager();
+// Export singleton instance
+export const inventoryManager = new InventoryManager();
+export default inventoryManager;
