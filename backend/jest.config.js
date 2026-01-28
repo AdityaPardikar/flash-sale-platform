@@ -6,4 +6,5 @@ export default {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  transformIgnorePatterns: ['node_modules/(?!uuid)'],
 };

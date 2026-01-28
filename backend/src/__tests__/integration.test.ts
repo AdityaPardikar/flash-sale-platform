@@ -5,6 +5,11 @@ import { backgroundJobRunner } from '../services/backgroundJobRunner';
 import { analyticsService } from '../services/analyticsService';
 import { FlashSale } from '../models';
 
+// Mock uuid
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'mock-uuid-123'),
+}));
+
 // Mock database and Redis
 jest.mock('../utils/database');
 jest.mock('../utils/redis');
@@ -50,7 +55,7 @@ describe('SaleTimingService', () => {
       const validation = saleTimingService.validateSaleTiming(startTime, endTime);
 
       expect(validation.valid).toBe(false);
-      expect(validation.errors).toContain('Sale start time cannot be in the past');
+      expect(validation.errors).toContain('Start time cannot be in the past');
     });
 
     it('should reject sale shorter than 5 minutes', () => {

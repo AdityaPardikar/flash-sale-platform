@@ -4,6 +4,7 @@ import { FlashSale } from '../models';
 import { stateMachine } from './stateMachine';
 import { inventoryManager } from './inventoryManager';
 import { saleTimingService } from './saleTimingService';
+import { queueEntryManager } from './queueEntryManager';
 
 interface JobConfig {
   name: string;
@@ -43,6 +44,11 @@ class BackgroundJobRunner {
     {
       name: 'refreshActiveSalesCache',
       interval: 2 * 60 * 1000, // Every 2 minutes
+      enabled: true,
+    },
+    {
+      name: 'timeoutExpiredQueueReservations',
+      interval: 5 * 60 * 1000, // Every 5 minutes
       enabled: true,
     },
   ];
@@ -122,6 +128,9 @@ class BackgroundJobRunner {
           break;
         case 'refreshActiveSalesCache':
           result = await this.refreshActiveSalesCacheJob();
+          break;
+        case 'timeoutExpiredQueueReservations':
+          result = await this.timeoutExpiredQueueReservationsJob();
           break;
         default:
           result = {
@@ -375,6 +384,32 @@ class BackgroundJobRunner {
         jobName: 'refreshActiveSalesCache',
         success: false,
         message: 'Failed to refresh active sales cache',
+        duration: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Job: Timeout expired queue reservations
+   */
+  private async timeoutExpiredQueueReservationsJob(): Promise<JobResult> {
+    try {
+      // Timeout expired reservations
+      const count = await queueEntryManager.timeoutExpiredReservations();
+
+      return {
+        jobName: 'timeoutExpiredQueueReservations',
+        success: true,
+        message: `Timed out ${count} expired queue reservations`,
+        duration: 0,
+        itemsProcessed: count,
+      };
+    } catch (error) {
+      return {
+        jobName: 'timeoutExpiredQueueReservations',
+        success: false,
+        message: 'Failed to timeout expired queue reservations',
         duration: 0,
         error: error instanceof Error ? error.message : 'Unknown error',
       };

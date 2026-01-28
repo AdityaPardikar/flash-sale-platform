@@ -17,6 +17,7 @@ import {
 } from './utils/redisOperations';
 import productRoutes from './routes/productRoutes';
 import flashSaleRoutes from './routes/flashSaleRoutes';
+import queueRoutes from './routes/queueRoutes';
 import { backgroundJobRunner } from './services/backgroundJobRunner';
 import flashSaleService from './services/flashSaleService';
 
@@ -212,6 +213,9 @@ apiRouter.use('/products', productRoutes);
 
 // Flash sales routes
 apiRouter.use('/flash-sales', flashSaleRoutes);
+
+// Queue routes
+apiRouter.use('/queue', queueRoutes);
 
 // Products routes (placeholder - for backward compatibility)
 apiRouter.get('/products-legacy', (req: Request, res: Response) => {

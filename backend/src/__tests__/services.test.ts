@@ -3,29 +3,16 @@ import flashSaleService, { CreateFlashSaleDto } from '../services/flashSaleServi
 import inventoryManager from '../services/inventoryManager';
 import pool from '../utils/database';
 
-// Mock database module
-jest.mock('../utils/database', () => ({
-  default: {
-    query: jest.fn(),
-  },
+// Mock uuid
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'mock-uuid-123'),
 }));
 
+// Mock database module
+jest.mock('../utils/database');
+
 // Mock Redis client
-jest.mock('../utils/redis', () => ({
-  default: {
-    get: jest.fn(),
-    set: jest.fn(),
-    setex: jest.fn(),
-    del: jest.fn(),
-    sadd: jest.fn(),
-    srem: jest.fn(),
-    incrby: jest.fn(),
-    eval: jest.fn(),
-    exists: jest.fn(),
-    ttl: jest.fn(),
-    keys: jest.fn(),
-  },
-}));
+jest.mock('../utils/redis');
 
 describe('ProductService', () => {
   beforeEach(() => {
