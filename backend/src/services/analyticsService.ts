@@ -12,7 +12,10 @@ export type AnalyticsEventType =
   | 'reservation_expired'
   | 'purchase_attempt'
   | 'purchase_complete'
-  | 'purchase_failed';
+  | 'purchase_failed'
+  | 'order_initiated'
+  | 'order_completed'
+  | 'order_cancelled';
 
 interface AnalyticsEvent {
   id: string;

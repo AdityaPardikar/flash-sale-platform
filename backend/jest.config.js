@@ -1,10 +1,16 @@
-import { execSync } from 'child_process';
-
 export default {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
-  transformIgnorePatterns: ['node_modules/(?!uuid)'],
+  transform: {
+    '^.+\.tsx?$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+      },
+    }],
+  },
 };

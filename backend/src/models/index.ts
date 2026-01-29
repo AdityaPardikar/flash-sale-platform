@@ -44,12 +44,21 @@ export interface QueueEntry {
 // Order model interface
 export interface Order {
   id: string;
+  order_number: string;
   user_id: string;
   flash_sale_id: string;
+  product_id: string;
   quantity: number;
-  total_price: number;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  unit_price: string;
+  total_amount: string;
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'refunded';
+  payment_status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
+  payment_id?: string;
+  payment_details?: Record<string, any>;
+  shipping_address?: Record<string, any>;
   created_at: Date;
+  updated_at: Date;
+  completed_at?: Date;
 }
 
 // Analytics Event model interface
