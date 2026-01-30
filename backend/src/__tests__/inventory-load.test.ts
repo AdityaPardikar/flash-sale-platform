@@ -18,15 +18,19 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
       let remaining = totalStock;
       let successCount = 0;
 
-      (redisClient.eval as jest.Mock).mockImplementation(async (_script, _keys, args) => {
-        const [_key, _ttl, _userId, quantity] = args;
-        if (remaining >= quantity) {
-          remaining -= quantity;
-          successCount++;
-          return [1, remaining];
+      (redisClient.eval as jest.Mock).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (_script, _keys, args) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const [_key, _ttl, _userId, quantity] = args;
+          if (remaining >= quantity) {
+            remaining -= quantity;
+            successCount++;
+            return [1, remaining];
+          }
+          return [0, remaining];
         }
-        return [0, remaining];
-      });
+      );
 
       const promises = Array(100)
         .fill(null)
@@ -43,14 +47,18 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
       let currentInventory = totalStock;
       const requests = [];
 
-      (redisClient.eval as jest.Mock).mockImplementation(async (_script, _keys, args) => {
-        const [_key, _ttl, _userId, quantity] = args;
-        if (currentInventory >= quantity) {
-          currentInventory -= quantity;
-          return [1, currentInventory];
+      (redisClient.eval as jest.Mock).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (_script, _keys, args) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const [_key, _ttl, _userId, quantity] = args;
+          if (currentInventory >= quantity) {
+            currentInventory -= quantity;
+            return [1, currentInventory];
+          }
+          return [0, currentInventory];
         }
-        return [0, currentInventory];
-      });
+      );
 
       // Simulate 500 requests across all quantities
       for (let i = 0; i < 500; i++) {
@@ -72,14 +80,18 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
         ...Array(20).fill(10), // 20 users buying 10
       ];
 
-      (redisClient.eval as jest.Mock).mockImplementation(async (_script, _keys, args) => {
-        const [_key, _ttl, _userId, qty] = args;
-        if (inventory >= qty) {
-          inventory -= qty;
-          return [1, inventory];
+      (redisClient.eval as jest.Mock).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (_script, _keys, args) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const [_key, _ttl, _userId, qty] = args;
+          if (inventory >= qty) {
+            inventory -= qty;
+            return [1, inventory];
+          }
+          return [0, inventory];
         }
-        return [0, inventory];
-      });
+      );
 
       const promises = quantities.map((qty, idx) =>
         inventoryManager.reserveInventory(saleId, `user-${idx}`, qty)
@@ -88,7 +100,8 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
       const results = await Promise.all(promises);
       const totalSold = results
         .filter((r: { success: boolean }) => r.success)
-        .reduce((acc, r: { success: boolean }) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .reduce((acc, _r: { success: boolean }) => {
           // Find corresponding quantity
           return acc + 1;
         }, 0);
@@ -102,14 +115,18 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
       const burstSize = 1000;
       let successfulReservations = 0;
 
-      (redisClient.eval as jest.Mock).mockImplementation(async (_script, _keys, args) => {
-        const [_key, _ttl, _userId, quantity] = args;
-        if (successfulReservations < totalStock) {
-          successfulReservations++;
-          return [1, totalStock - successfulReservations];
+      (redisClient.eval as jest.Mock).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (_script, _keys, args) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const [_key, _ttl, _userId, quantity] = args;
+          if (successfulReservations < totalStock) {
+            successfulReservations++;
+            return [1, totalStock - successfulReservations];
+          }
+          return [0, totalStock - successfulReservations];
         }
-        return [0, totalStock - successfulReservations];
-      });
+      );
 
       const burstRequests = Array(burstSize)
         .fill(null)
@@ -122,7 +139,9 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
 
     it('should not allow double-booking same user across concurrent requests', async () => {
       const userId = 'unique-user-001';
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const firstReservation = { success: true, remaining: totalStock - 1 };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const secondReservation = { success: false, remaining: totalStock - 1 };
 
       (redisClient.get as jest.Mock)
@@ -146,15 +165,19 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
       let totalInventory = totalStock * 10; // 1000 units
       let totalSold = 0;
 
-      (redisClient.eval as jest.Mock).mockImplementation(async (_script, _keys, args) => {
-        const [_key, _ttl, _userId, quantity] = args;
-        if (totalInventory >= quantity) {
-          totalInventory -= quantity;
-          totalSold++;
-          return [1, totalInventory];
+      (redisClient.eval as jest.Mock).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (_script, _keys, args) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const [_key, _ttl, _userId, quantity] = args;
+          if (totalInventory >= quantity) {
+            totalInventory -= quantity;
+            totalSold++;
+            return [1, totalInventory];
+          }
+          return [0, totalInventory];
         }
-        return [0, totalInventory];
-      });
+      );
 
       for (let wave = 0; wave < 10; wave++) {
         const waveRequests = Array(100)
@@ -211,14 +234,18 @@ describe('Week 3 Day 5: Inventory Load Testing - No Overselling', () => {
       const inventory = 100;
       let sold = 0;
 
-      (redisClient.eval as jest.Mock).mockImplementation(async (_script, _keys, args) => {
-        const [_key, _ttl, _userId, _qty] = args;
-        if (sold < inventory) {
-          sold++;
-          return [1, inventory - sold];
+      (redisClient.eval as jest.Mock).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (_script, _keys, args) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const [_key, _ttl, _userId, _qty] = args;
+          if (sold < inventory) {
+            sold++;
+            return [1, inventory - sold];
+          }
+          return [0, inventory - sold];
         }
-        return [0, inventory - sold];
-      });
+      );
 
       const operations = Array(10000)
         .fill(null)
