@@ -19,6 +19,7 @@ import productRoutes from './routes/productRoutes';
 import flashSaleRoutes from './routes/flashSaleRoutes';
 import queueRoutes from './routes/queueRoutes';
 import orderRoutes from './routes/orderRoutes';
+import adminRoutes from './routes/adminRoutes';
 import { backgroundJobRunner } from './services/backgroundJobRunner';
 import flashSaleService from './services/flashSaleService';
 
@@ -262,6 +263,9 @@ apiRouter.get('/orders', authMiddleware, (req: Request, res: Response) => {
     orders: [],
   });
 });
+
+// Admin routes
+apiRouter.use('/admin', adminRoutes);
 
 // Mount API router
 app.use('/api/v1', apiRouter);
