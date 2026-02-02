@@ -1,0 +1,970 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Flash Sale Platform API",
+    "description": "Production-ready distributed flash sale platform with real-time queue management, inventory control, and WebSocket support.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.flashsale.com",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "required": ["id", "email", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "user-001"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["id", "name", "price"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "prod-001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Premium Headphones"
+          },
+          "description": {
+            "type": "string",
+            "example": "High-quality wireless headphones"
+          },
+          "original_price": {
+            "type": "number",
+            "format": "float",
+            "example": 199.99
+          },
+          "discounted_price": {
+            "type": "number",
+            "format": "float",
+            "example": 99.99
+          },
+          "stock": {
+            "type": "integer",
+            "example": 1000
+          },
+          "category": {
+            "type": "string",
+            "example": "Electronics"
+          }
+        }
+      },
+      "FlashSale": {
+        "type": "object",
+        "required": ["id", "product_id", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "sale-001"
+          },
+          "product_id": {
+            "type": "string",
+            "example": "prod-001"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "active", "completed", "cancelled"],
+            "example": "active"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-02-02T10:00:00Z"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-02-02T11:00:00Z"
+          },
+          "discount_percentage": {
+            "type": "integer",
+            "example": 50
+          },
+          "initial_stock": {
+            "type": "integer",
+            "example": 1000
+          },
+          "sold_units": {
+            "type": "integer",
+            "example": 750
+          }
+        }
+      },
+      "QueueEntry": {
+        "type": "object",
+        "required": ["id", "sale_id", "user_id", "position"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "queue-001"
+          },
+          "sale_id": {
+            "type": "string",
+            "example": "sale-001"
+          },
+          "user_id": {
+            "type": "string",
+            "example": "user-001"
+          },
+          "position": {
+            "type": "integer",
+            "example": 42
+          },
+          "status": {
+            "type": "string",
+            "enum": ["waiting", "processing", "completed", "expired"],
+            "example": "waiting"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["id", "user_id", "product_id", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "order-001"
+          },
+          "user_id": {
+            "type": "string",
+            "example": "user-001"
+          },
+          "product_id": {
+            "type": "string",
+            "example": "prod-001"
+          },
+          "quantity": {
+            "type": "integer",
+            "example": 1
+          },
+          "total_amount": {
+            "type": "number",
+            "format": "float",
+            "example": 99.99
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"],
+            "example": "confirmed"
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": ["pending", "completed", "failed", "refunded"],
+            "example": "completed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "INVALID_REQUEST"
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid product ID"
+          },
+          "statusCode": {
+            "type": "integer",
+            "example": 400
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "newuser@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "SecurePass123!"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or duplicate email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login with email and password",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "description": "Token expiration in seconds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get all products",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Product"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create new product (Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - admin access required"
+          }
+        }
+      }
+    },
+    "/api/v1/products/{id}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get product by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found"
+          }
+        }
+      }
+    },
+    "/api/v1/sales": {
+      "get": {
+        "tags": ["Flash Sales"],
+        "summary": "Get all flash sales",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "active", "completed", "cancelled"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of flash sales",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sales": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FlashSale"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sales/{id}": {
+      "get": {
+        "tags": ["Flash Sales"],
+        "summary": "Get flash sale details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flash sale details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlashSale"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sale not found"
+          }
+        }
+      }
+    },
+    "/api/v1/queue/join": {
+      "post": {
+        "tags": ["Queue"],
+        "summary": "Join flash sale queue",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["sale_id"],
+                "properties": {
+                  "sale_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully joined queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot join queue - sale inactive or user already in queue"
+          }
+        }
+      }
+    },
+    "/api/v1/queue/position": {
+      "get": {
+        "tags": ["Queue"],
+        "summary": "Get queue position",
+        "parameters": [
+          {
+            "name": "sale_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue position information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "position": {
+                      "type": "integer"
+                    },
+                    "total_in_queue": {
+                      "type": "integer"
+                    },
+                    "estimated_wait": {
+                      "type": "integer",
+                      "description": "Estimated wait time in seconds"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Create new order",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "quantity"],
+                "properties": {
+                  "product_id": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "payment_method": {
+                    "type": "string",
+                    "enum": ["credit_card", "debit_card", "paypal", "wallet"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid order data or insufficient inventory"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get user's order history",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User's orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orders": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Order"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get order details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Orders"],
+        "summary": "Cancel order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order cancelled successfully"
+          },
+          "400": {
+            "description": "Cannot cancel order - outside cancellation window"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/dashboard/overview": {
+      "get": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Get dashboard overview (Admin only)",
+        "responses": {
+          "200": {
+            "description": "Dashboard metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sales": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "active": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "orders": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "pending": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "users": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "active": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/sales/metrics": {
+      "get": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Get all sales metrics (Admin only)",
+        "responses": {
+          "200": {
+            "description": "Sales metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sales": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "queued_users": {
+                            "type": "integer"
+                          },
+                          "completed_orders": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/sales/{saleId}/queue": {
+      "get": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Get queue details for admin (Admin only)",
+        "parameters": [
+          {
+            "name": "saleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue details with user information"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/queue/remove": {
+      "post": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Remove user from queue (Admin only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["sale_id", "user_id"],
+                "properties": {
+                  "sale_id": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User removed from queue"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/sales/{saleId}/status": {
+      "patch": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Update sale status (Admin only)",
+        "parameters": [
+          {
+            "name": "saleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "active", "completed", "cancelled"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sale status updated"
+          },
+          "400": {
+            "description": "Invalid status transition"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reports/performance": {
+      "get": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Get performance report (Admin only)",
+        "responses": {
+          "200": {
+            "description": "Performance metrics including revenue and conversion rates"
+          }
+        }
+      }
+    }
+  }
+}
