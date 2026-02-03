@@ -465,4 +465,5 @@ class BackgroundJobRunner {
 
 // Export singleton instance
 export const backgroundJobRunner = new BackgroundJobRunner();
-export { BackgroundJobRunner, JobConfig, JobResult };
+export { BackgroundJobRunner };
+export type { JobConfig, JobResult };

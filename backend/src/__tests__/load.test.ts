@@ -13,8 +13,8 @@
 
 import pool from '../utils/database';
 import { queueService } from '../services/queueService';
-import { flashSaleService } from '../services/flashSaleService';
 import { orderService } from '../services/orderService';
+import redisClient from '../utils/redis';
 
 jest.mock('../utils/database');
 jest.mock('../utils/redis');
@@ -45,7 +45,7 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
       const results = await Promise.all(joinPromises);
 
       expect(results).toHaveLength(concurrentCount);
-      results.forEach((result, index) => {
+      results.forEach((result) => {
         expect(result).toHaveProperty('position');
         expect(result.position).toBeGreaterThanOrEqual(1);
       });
@@ -98,31 +98,17 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
       expect(endTime - startTime).toBeLessThan(5000); // Should complete in < 5 seconds
     });
 
-    it('LOAD-004: Queue with 10,000 users - pagination performance', async () => {
+    it('LOAD-004: Queue with 10,000 users - stats performance', async () => {
       const totalUsers = 10000;
-      const pageSize = 100;
 
-      // Mock: return paginated results
-      (pool.query as jest.Mock).mockResolvedValue({
-        rows: Array.from({ length: pageSize }, (_, i) => ({
-          position: i + 1,
-          user_id: `user-${i}`,
-        })),
-        rowCount: pageSize,
-      });
+      // Mock Redis for getQueueStats
+      (redisClient.zcard as jest.Mock) = jest.fn().mockResolvedValue(totalUsers);
 
-      const page1 = await queueService.getQueueOrder(testSaleId, {
-        offset: 0,
-        limit: pageSize,
-      });
+      const stats = await queueService.getQueueStats(testSaleId);
 
-      const page2 = await queueService.getQueueOrder(testSaleId, {
-        offset: pageSize,
-        limit: pageSize,
-      });
-
-      expect(page1).toHaveLength(pageSize);
-      expect(page2).toHaveLength(pageSize);
+      expect(stats.totalWaiting).toBe(totalUsers);
+      expect(stats).toHaveProperty('estimatedWaitTimeMinutes');
+      expect(stats).toHaveProperty('admissionRate');
     });
 
     it('LOAD-005: Rapid queue join/leave operations', async () => {
@@ -141,7 +127,7 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
             rows: [{ success: true }],
             rowCount: 1,
           });
-          operationPromises.push(queueService.leaveQueue(testSaleId, `user-${i}`));
+          operationPromises.push(queueService.leaveQueue(`user-${i}`, testSaleId));
         }
       }
 
@@ -157,17 +143,37 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
   describe('Inventory System - Concurrent Order Tests', () => {
     it('LOAD-006: 50 concurrent orders from limited stock', async () => {
       const concurrentOrders = 50;
-      const totalStock = 100;
       const orderPromises = [];
 
-      // Simulate declining inventory
+      // Mock checkout flow for each order
       for (let i = 0; i < concurrentOrders; i++) {
-        (pool.query as jest.Mock).mockResolvedValueOnce({
-          rows: [{ remaining_stock: Math.max(0, totalStock - i) }],
-          rowCount: 1,
-        });
+        (pool.query as jest.Mock)
+          .mockResolvedValueOnce({
+            rows: [
+              {
+                id: testSaleId,
+                product_id: testProductId,
+                status: 'active',
+                product_name: 'Test',
+                base_price: 100,
+              },
+            ],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+          .mockResolvedValueOnce({
+            rows: [{ order_id: `order-${i}`, order_number: `ORD-${i}` }],
+            rowCount: 1,
+          });
 
-        orderPromises.push(orderService.reserveInventory(testProductId, `user-${i}`, 1));
+        orderPromises.push(
+          orderService.initiateCheckout({
+            userId: `user-${i}`,
+            saleId: testSaleId,
+            productId: testProductId,
+            quantity: 1,
+          })
+        );
       }
 
       const results = await Promise.all(orderPromises);
@@ -195,7 +201,12 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
           reservationCount++;
         }
 
-        return orderService.reserveInventory(testProductId, `user-${i}`, 1);
+        return orderService.initiateCheckout({
+          userId: `user-${i}`,
+          saleId: testSaleId,
+          productId: testProductId,
+          quantity: 1,
+        });
       });
 
       const results = await Promise.all(reservePromises);
@@ -220,9 +231,33 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
       }
 
       // Simulate rapid stock decrements
-      const stockChecks = Array.from({ length: iterations }, (_, i) =>
-        orderService.reserveInventory(testProductId, `user-${i}`, 1)
-      );
+      const stockChecks = Array.from({ length: iterations }, (_, i) => {
+        (pool.query as jest.Mock)
+          .mockResolvedValueOnce({
+            rows: [
+              {
+                id: testSaleId,
+                product_id: testProductId,
+                status: 'active',
+                product_name: 'Test',
+                base_price: 100,
+              },
+            ],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+          .mockResolvedValueOnce({
+            rows: [{ order_id: `order-${i}`, order_number: `ORD-${i}` }],
+            rowCount: 1,
+          });
+
+        return orderService.initiateCheckout({
+          userId: `user-${i}`,
+          saleId: testSaleId,
+          productId: testProductId,
+          quantity: 1,
+        });
+      });
 
       const results = await Promise.all(stockChecks);
 
@@ -231,36 +266,32 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
       expect(expectedStock).toBe(900);
     });
 
-    it('LOAD-009: Payment processing under load - 100 concurrent payments', async () => {
-      const concurrentPayments = 100;
-      const paymentPromises = [];
+    it('LOAD-009: Order confirmation under load - 100 concurrent confirmations', async () => {
+      const concurrentConfirmations = 100;
+      const confirmationPromises = [];
 
-      for (let i = 0; i < concurrentPayments; i++) {
-        (pool.query as jest.Mock).mockResolvedValueOnce({
-          rows: [
-            {
-              payment_id: `pay-${i}`,
-              status: 'completed',
-              amount: 49.99,
-            },
-          ],
-          rowCount: 1,
-        });
-
-        paymentPromises.push(
-          orderService.processPayment(`user-${i}`, {
-            amount: 49.99,
-            currency: 'USD',
+      for (let i = 0; i < concurrentConfirmations; i++) {
+        (pool.query as jest.Mock)
+          .mockResolvedValueOnce({
+            rows: [{ order_id: `order-${i}`, status: 'pending', user_id: `user-${i}` }],
+            rowCount: 1,
           })
+          .mockResolvedValueOnce({
+            rows: [{ order_id: `order-${i}`, status: 'completed' }],
+            rowCount: 1,
+          });
+
+        confirmationPromises.push(
+          orderService.confirmOrder(`order-${i}`, `user-${i}`, `payment-${i}`)
         );
       }
 
       const startTime = Date.now();
-      const results = await Promise.all(paymentPromises);
+      const results = await Promise.all(confirmationPromises);
       const endTime = Date.now();
 
-      expect(results).toHaveLength(concurrentPayments);
-      console.log(`\n✓ Processed 100 concurrent payments in ${endTime - startTime}ms`);
+      expect(results).toHaveLength(concurrentConfirmations);
+      console.log(`\n✓ Processed 100 concurrent confirmations in ${endTime - startTime}ms`);
     });
   });
 
@@ -313,8 +344,6 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
 
     it('LOAD-012: Response time under sustained load', async () => {
       const testDuration = 2000; // 2 seconds
-      const requestInterval = 100; // Request every 100ms
-      const expectedRequests = testDuration / requestInterval;
 
       const responseTimes = [];
       const startTime = Date.now();
@@ -384,7 +413,6 @@ describe('LOAD TESTING: High Concurrency & Stress Tests', () => {
       const testDuration = 30000; // 30 second test
 
       const updatesExpected = Math.floor(testDuration / updateFrequency);
-      const totalBroadcasts = updatesExpected * connectedUsers;
 
       console.log(
         `\n✓ Expected ${updatesExpected} position updates over 30s to ${connectedUsers} users`

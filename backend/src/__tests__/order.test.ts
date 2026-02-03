@@ -1,3 +1,15 @@
+/**
+ * Order Service Test Suite
+ *
+ * NOTE: VS Code may show "Cannot find name 'jest'" errors for test files.
+ * This is expected and safe to ignore. Test files are:
+ * - Excluded from TypeScript compilation (see tsconfig.json)
+ * - Only compiled when running tests via Jest
+ * - Have Jest globals available at test runtime
+ *
+ * To run tests: npm test
+ */
+
 import orderService, { CreateOrderInput } from '../services/orderService';
 import orderValidator from '../services/orderValidator';
 import paymentProcessor from '../services/paymentProcessor';

@@ -281,4 +281,5 @@ Valid Transitions:
 
 // Export singleton instance
 export const stateMachine = new StateMachine();
-export { StateMachine, StateTransition, TransitionResult };
+export { StateMachine };
+export type { StateTransition, TransitionResult };

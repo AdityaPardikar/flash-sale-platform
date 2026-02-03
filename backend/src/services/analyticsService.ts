@@ -395,4 +395,5 @@ class AnalyticsService {
 
 // Export singleton instance
 export const analyticsService = new AnalyticsService();
-export { AnalyticsService, AnalyticsEvent, SaleAnalytics, UserAnalytics };
+export { AnalyticsService };
+export type { AnalyticsEvent, SaleAnalytics, UserAnalytics };
