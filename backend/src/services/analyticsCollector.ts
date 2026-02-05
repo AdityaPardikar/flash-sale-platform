@@ -246,7 +246,7 @@ export class AnalyticsCollector {
   /**
    * Get aggregated stats
    */
-  async getStats(key: string): Promise<Record<string, any>> {
+  async getStats(key: string): Promise<Record<string, string | number>> {
     const stats = await this.redisClient.hgetall(key);
 
     // Convert to proper types
@@ -272,14 +272,14 @@ export class AnalyticsCollector {
   /**
    * Get daily stats
    */
-  async getDailyStats(date: string): Promise<Record<string, any>> {
+  async getDailyStats(date: string): Promise<Record<string, string | number>> {
     return this.getStats(this.ANALYTICS_KEYS.DAILY_STATS(date));
   }
 
   /**
    * Get hourly stats
    */
-  async getHourlyStats(date: string, hour: number): Promise<Record<string, any>> {
+  async getHourlyStats(date: string, hour: number): Promise<Record<string, string | number>> {
     return this.getStats(this.ANALYTICS_KEYS.HOURLY_STATS(date, hour));
   }
 

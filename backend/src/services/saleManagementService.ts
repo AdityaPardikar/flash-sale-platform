@@ -133,18 +133,13 @@ export class SaleManagementService {
         throw new Error('Scheduled start time must be before end time');
       }
 
-      const query = `
+      const queryStr = `
         UPDATE flash_sales 
-        SET start_time = ?, end_time = ?, status = 'scheduled', updated_at = NOW() 
-        WHERE id = ?
+        SET start_time = $1, end_time = $2, status = 'scheduled', updated_at = NOW() 
+        WHERE id = $3
       `;
 
-      await new Promise<void>((resolve, reject) => {
-        db.run(query, [scheduled_start, scheduled_end, sale_id], (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await query(queryStr, [scheduled_start, scheduled_end, sale_id]);
     } catch (error) {
       console.error(`Error scheduling sale ${update.sale_id}:`, error);
       throw error;
@@ -156,35 +151,26 @@ export class SaleManagementService {
    */
   static async adjustInventory(adjustment: InventoryAdjustment): Promise<number> {
     try {
-      const { sale_id, adjustment: amount, reason } = adjustment;
+      const { sale_id, adjustment: amount } = adjustment;
 
       // Get current inventory
-      const query = `SELECT remaining_inventory FROM flash_sales WHERE id = ?`;
-      const sale = await new Promise<any>((resolve, reject) => {
-        db.get(query, [sale_id], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
+      const selectQuery = `SELECT remaining_inventory FROM flash_sales WHERE id = $1`;
+      const result = await query(selectQuery, [sale_id]);
 
-      if (!sale) {
+      if (result.rows.length === 0) {
         throw new Error(`Sale ${sale_id} not found`);
       }
 
+      const sale = result.rows[0];
       const newInventory = Math.max(0, sale.remaining_inventory + amount);
 
       const updateQuery = `
         UPDATE flash_sales 
-        SET remaining_inventory = ?, updated_at = NOW() 
-        WHERE id = ?
+        SET remaining_inventory = $1, updated_at = NOW() 
+        WHERE id = $2
       `;
 
-      await new Promise<void>((resolve, reject) => {
-        db.run(updateQuery, [newInventory, sale_id], (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await query(updateQuery, [newInventory, sale_id]);
 
       return newInventory;
     } catch (error) {
@@ -205,24 +191,15 @@ export class SaleManagementService {
       }
 
       // Insert or update price override
-      const query = `
+      const queryStr = `
         INSERT INTO flash_sale_price_overrides 
         (flash_sale_id, product_id, discount_percentage, created_at, updated_at)
-        VALUES (?, ?, ?, NOW(), NOW())
+        VALUES ($1, $2, $3, NOW(), NOW())
         ON CONFLICT(flash_sale_id, product_id) DO UPDATE SET 
-        discount_percentage = ?, updated_at = NOW()
+        discount_percentage = $3, updated_at = NOW()
       `;
 
-      await new Promise<void>((resolve, reject) => {
-        db.run(
-          query,
-          [sale_id, product_id, override_discount_percentage, override_discount_percentage],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      await query(queryStr, [sale_id, product_id, override_discount_percentage]);
     } catch (error) {
       console.error(`Error setting price override:`, error);
       throw error;
@@ -234,17 +211,12 @@ export class SaleManagementService {
    */
   static async removePriceOverride(saleId: string, productId: string): Promise<void> {
     try {
-      const query = `
+      const queryStr = `
         DELETE FROM flash_sale_price_overrides 
-        WHERE flash_sale_id = ? AND product_id = ?
+        WHERE flash_sale_id = $1 AND product_id = $2
       `;
 
-      await new Promise<void>((resolve, reject) => {
-        db.run(query, [saleId, productId], (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await query(queryStr, [saleId, productId]);
     } catch (error) {
       console.error(`Error removing price override:`, error);
       throw error;
@@ -256,20 +228,15 @@ export class SaleManagementService {
    */
   static async getPriceOverrides(saleId: string): Promise<PriceOverride[]> {
     try {
-      const query = `
+      const queryStr = `
         SELECT flash_sale_id as sale_id, product_id, discount_percentage as override_discount_percentage
         FROM flash_sale_price_overrides
-        WHERE flash_sale_id = ?
+        WHERE flash_sale_id = $1
       `;
 
-      const overrides = await new Promise<PriceOverride[]>((resolve, reject) => {
-        db.all(query, [saleId], (err, rows) => {
-          if (err) reject(err);
-          else resolve((rows || []) as PriceOverride[]);
-        });
-      });
+      const result = await query(queryStr, [saleId]);
 
-      return overrides;
+      return result.rows as PriceOverride[];
     } catch (error) {
       console.error(`Error fetching price overrides for sale ${saleId}:`, error);
       throw error;
@@ -279,27 +246,38 @@ export class SaleManagementService {
   /**
    * Get current sale status
    */
-  static async getSaleStatus(saleId: string): Promise<any> {
+  static async getSaleStatus(saleId: string): Promise<{
+    id: string;
+    name: string;
+    status: string;
+    start_time: Date;
+    end_time: Date;
+    discount_percentage: number;
+    remaining_inventory: number;
+    total_inventory: number;
+    max_purchases_per_user: number;
+    updated_at: Date;
+    inventory_status: string;
+    time_until_start: number;
+    time_until_end: number;
+  }> {
     try {
-      const query = `
+      const queryStr = `
         SELECT 
           id, name, status, start_time, end_time, 
           discount_percentage, remaining_inventory, total_inventory,
           max_purchases_per_user, updated_at
         FROM flash_sales
-        WHERE id = ?
+        WHERE id = $1
       `;
 
-      const sale = await new Promise<any>((resolve, reject) => {
-        db.get(query, [saleId], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
+      const result = await query(queryStr, [saleId]);
 
-      if (!sale) {
+      if (result.rows.length === 0) {
         throw new Error(`Sale ${saleId} not found`);
       }
+
+      const sale = result.rows[0];
 
       return {
         ...sale,

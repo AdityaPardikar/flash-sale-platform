@@ -5,8 +5,8 @@
 
 import { Request, Response } from 'express';
 import { query } from '../utils/database';
-import { getQueueLength, getQueuePosition, getQueueHead } from '../utils/redisOperations';
-import { getAnalyticsCollector } from './analyticsCollector';
+import { getQueueLength, getQueuePosition } from '../utils/redisOperations';
+import { getAnalyticsCollector } from '../services/analyticsCollector';
 
 export interface QueueStats {
   sale_id: string;

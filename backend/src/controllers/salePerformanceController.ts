@@ -273,7 +273,7 @@ export const comparePerformance = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'sale_ids must be a non-empty array' });
     }
 
-    const comparison = await SalePerformanceService.comparePerformance(sale_ids);
+    const comparison = await SalePerformanceService.compareSalesPerformance(sale_ids);
     res.json({
       comparison_count: comparison.length,
       data: comparison,

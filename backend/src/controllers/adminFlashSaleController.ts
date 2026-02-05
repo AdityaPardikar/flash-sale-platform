@@ -18,18 +18,67 @@ export interface CreateFlashSaleDTO {
   status: 'draft' | 'scheduled' | 'active' | 'paused' | 'ended' | 'cancelled';
 }
 
-export interface UpdateFlashSaleDTO {
-  name?: string;
-  description?: string;
-  discount_percentage?: number;
-  start_time?: Date;
-  end_time?: Date;
-  product_ids?: string[];
-  max_purchases_per_user?: number;
-  total_inventory?: number;
+/**
+ * GET /api/admin/flash-sales
+ * List all flash sales with filters and pagination
+ */
+export async function getAllFlashSales(req: Request, res: Response) {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
+    const status = req.query.status as string | undefined;
+    const search = req.query.search as string | undefined;
+    const offset = (page - 1) * limit;
+
+    let countQuery = 'SELECT COUNT(*) as count FROM flash_sales WHERE 1=1';
+    let selectQuery = `
+      SELECT id, name, description, discount_percentage, status, 
+             start_time, end_time, max_purchases_per_user, 
+             total_inventory, remaining_inventory, created_at, updated_at
+      FROM flash_sales WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (status) {
+      countQuery += ` AND status = $${params.length + 1}`;
+      selectQuery += ` AND status = $${params.length + 1}`;
+      params.push(status);
+    }
+
+    if (search) {
+      countQuery += ` AND (name ILIKE $${params.length + 1} OR description ILIKE $${params.length + 1})`;
+      selectQuery += ` AND (name ILIKE $${params.length + 1} OR description ILIKE $${params.length + 1})`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    const countResult = await query(countQuery, []);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    selectQuery += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
+    const result = await query(selectQuery, params);
+
+    res.json({
+      data: result.rows,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching flash sales:', error);
+    res.status(500).json({ error: 'Failed to fetch flash sales' });
+  }
 }
 
-export const createFlashSale = async (req: Request, res: Response) => {
+/**
+ * POST /api/admin/flash-sales
+ * Create new flash sale
+ */
+export async function createFlashSale(req: Request, res: Response) {
   try {
     const {
       name,
@@ -42,426 +91,337 @@ export const createFlashSale = async (req: Request, res: Response) => {
       total_inventory,
     } = req.body as CreateFlashSaleDTO;
 
-    // Validation
-    if (!name || !discount_percentage || !start_time || !end_time || !product_ids?.length) {
-      return res.status(400).json({
-        error:
-          'Missing required fields: name, discount_percentage, start_time, end_time, product_ids',
-      });
+    // Validate inputs
+    if (!name || !description) {
+      return res.status(400).json({ error: 'Name and description are required' });
     }
 
-    if (new Date(start_time) >= new Date(end_time)) {
-      return res.status(400).json({ error: 'Start time must be before end time' });
-    }
-
-    if (discount_percentage <= 0 || discount_percentage > 100) {
+    if (discount_percentage < 0 || discount_percentage > 100) {
       return res.status(400).json({ error: 'Discount percentage must be between 0 and 100' });
     }
 
     // Create flash sale
-    const query = `
+    const insertQuery = `
       INSERT INTO flash_sales 
       (name, description, discount_percentage, start_time, end_time, status, 
        max_purchases_per_user, total_inventory, remaining_inventory, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+      RETURNING id, name, description, discount_percentage, status, start_time, end_time,
+                max_purchases_per_user, total_inventory, remaining_inventory, created_at, updated_at
     `;
 
-    const result = await new Promise<any>((resolve, reject) => {
-      db.run(
-        query,
-        [
-          name,
-          description,
-          discount_percentage,
-          start_time,
-          end_time,
-          'draft',
-          max_purchases_per_user || 1,
-          total_inventory || 1000,
-          total_inventory || 1000,
-        ],
-        function (err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID });
-        }
-      );
-    });
-
-    // Add products to sale
-    if (product_ids.length > 0) {
-      const insertQuery = `INSERT INTO flash_sale_products (flash_sale_id, product_id) VALUES (?, ?)`;
-      for (const productId of product_ids) {
-        await new Promise<void>((resolve, reject) => {
-          db.run(insertQuery, [result.id, productId], (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
-      }
-    }
-
-    res.status(201).json({
-      id: result.id,
+    const result = await query(insertQuery, [
       name,
       description,
       discount_percentage,
       start_time,
       end_time,
-      status: 'draft',
-      product_ids,
-      max_purchases_per_user: max_purchases_per_user || 1,
-      total_inventory: total_inventory || 1000,
-      remaining_inventory: total_inventory || 1000,
-      created_at: new Date(),
-    });
+      'draft',
+      max_purchases_per_user || 1,
+      total_inventory || 1000,
+      total_inventory || 1000,
+    ]);
+
+    const saleId = result.rows[0].id;
+
+    // Add products to sale
+    if (product_ids && product_ids.length > 0) {
+      const insertProductQuery = `INSERT INTO flash_sale_products (flash_sale_id, product_id) VALUES ($1, $2)`;
+      for (const productId of product_ids) {
+        await query(insertProductQuery, [saleId, productId]);
+      }
+    }
+
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating flash sale:', error);
     res.status(500).json({ error: 'Failed to create flash sale' });
   }
-};
+}
 
-export const updateFlashSale = async (req: Request, res: Response) => {
+/**
+ * GET /api/admin/flash-sales/:id
+ * Get single flash sale details
+ */
+export async function getFlashSaleDetails(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const updates = req.body as UpdateFlashSaleDTO;
 
-    if (!id) {
-      return res.status(400).json({ error: 'Sale ID is required' });
+    const saleQuery = `
+      SELECT id, name, description, discount_percentage, status, 
+             start_time, end_time, max_purchases_per_user, 
+             total_inventory, remaining_inventory, created_at, updated_at
+      FROM flash_sales WHERE id = $1
+    `;
+
+    const saleResult = await query(saleQuery, [id]);
+    if (saleResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Flash sale not found' });
     }
 
-    // Validate date range if updating times
-    if (updates.start_time && updates.end_time) {
-      if (new Date(updates.start_time) >= new Date(updates.end_time)) {
-        return res.status(400).json({ error: 'Start time must be before end time' });
-      }
-    }
+    const sale = saleResult.rows[0];
 
-    // Validate discount
-    if (updates.discount_percentage !== undefined) {
-      if (updates.discount_percentage <= 0 || updates.discount_percentage > 100) {
-        return res.status(400).json({ error: 'Discount percentage must be between 0 and 100' });
-      }
-    }
+    // Get associated products
+    const productsQuery = `
+      SELECT p.id, p.name, p.price, p.image_url
+      FROM products p
+      JOIN flash_sale_products fsp ON p.id = fsp.product_id
+      WHERE fsp.flash_sale_id = $1
+    `;
 
-    // Build update query
-    const updateFields: string[] = [];
-    const updateValues: any[] = [];
+    const productsResult = await query(productsQuery, [id]);
 
-    Object.entries(updates).forEach(([key, value]) => {
-      if (key !== 'product_ids') {
-        updateFields.push(`${key} = ?`);
-        updateValues.push(value);
-      }
+    res.json({
+      ...sale,
+      products: productsResult.rows,
     });
+  } catch (error) {
+    console.error('Error fetching flash sale details:', error);
+    res.status(500).json({ error: 'Failed to fetch flash sale details' });
+  }
+}
 
-    if (updateFields.length === 0 && !updates.product_ids) {
+/**
+ * PATCH /api/admin/flash-sales/:id
+ * Update flash sale
+ */
+export async function updateFlashSale(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { name, description, discount_percentage, start_time, end_time, status, product_ids } =
+      req.body;
+
+    if (
+      discount_percentage !== undefined &&
+      (discount_percentage < 0 || discount_percentage > 100)
+    ) {
+      return res.status(400).json({ error: 'Discount percentage must be between 0 and 100' });
+    }
+
+    // Build update query dynamically
+    const updates: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (name) {
+      updates.push(`name = $${paramIndex}`);
+      params.push(name);
+      paramIndex++;
+    }
+    if (description) {
+      updates.push(`description = $${paramIndex}`);
+      params.push(description);
+      paramIndex++;
+    }
+    if (discount_percentage !== undefined) {
+      updates.push(`discount_percentage = $${paramIndex}`);
+      params.push(discount_percentage);
+      paramIndex++;
+    }
+    if (start_time) {
+      updates.push(`start_time = $${paramIndex}`);
+      params.push(start_time);
+      paramIndex++;
+    }
+    if (end_time) {
+      updates.push(`end_time = $${paramIndex}`);
+      params.push(end_time);
+      paramIndex++;
+    }
+    if (status) {
+      updates.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    updateValues.push(id);
-    updateFields.push('updated_at = NOW()');
+    updates.push(`updated_at = NOW()`);
 
-    const query = `UPDATE flash_sales SET ${updateFields.join(', ')} WHERE id = ?`;
+    const updateQuery = `
+      UPDATE flash_sales 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, name, description, discount_percentage, status, start_time, end_time,
+                max_purchases_per_user, total_inventory, remaining_inventory, created_at, updated_at
+    `;
 
-    await new Promise<void>((resolve, reject) => {
-      db.run(query, updateValues, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    params.push(id);
+
+    const result = await query(updateQuery, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Flash sale not found' });
+    }
 
     // Update products if provided
-    if (updates.product_ids) {
-      await new Promise<void>((resolve, reject) => {
-        db.run('DELETE FROM flash_sale_products WHERE flash_sale_id = ?', [id], (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+    if (product_ids && Array.isArray(product_ids)) {
+      // Delete existing products
+      await query('DELETE FROM flash_sale_products WHERE flash_sale_id = $1', [id]);
 
-      const insertQuery = `INSERT INTO flash_sale_products (flash_sale_id, product_id) VALUES (?, ?)`;
-      for (const productId of updates.product_ids) {
-        await new Promise<void>((resolve, reject) => {
-          db.run(insertQuery, [id, productId], (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
+      // Insert new products
+      const insertProductQuery = `INSERT INTO flash_sale_products (flash_sale_id, product_id) VALUES ($1, $2)`;
+      for (const productId of product_ids) {
+        await query(insertProductQuery, [id, productId]);
       }
     }
 
-    res.json({ message: 'Flash sale updated successfully' });
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating flash sale:', error);
     res.status(500).json({ error: 'Failed to update flash sale' });
   }
-};
+}
 
-export const deleteFlashSale = async (req: Request, res: Response) => {
+/**
+ * POST /api/admin/flash-sales/:id/activate
+ * Activate a flash sale
+ */
+export async function activateFlashSale(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    if (!id) {
-      return res.status(400).json({ error: 'Sale ID is required' });
+    const updateQuery = `
+      UPDATE flash_sales 
+      SET status = 'active', updated_at = NOW()
+      WHERE id = $1 AND status = 'scheduled'
+      RETURNING id, name, status, start_time, end_time, created_at, updated_at
+    `;
+
+    const result = await query(updateQuery, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Flash sale not found or not in scheduled status' });
     }
 
-    // Check if sale is active
-    const checkQuery = `SELECT status FROM flash_sales WHERE id = ?`;
-    const sale = await new Promise<any>((resolve, reject) => {
-      db.get(checkQuery, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error activating flash sale:', error);
+    res.status(500).json({ error: 'Failed to activate flash sale' });
+  }
+}
 
-    if (!sale) {
+/**
+ * POST /api/admin/flash-sales/:id/pause
+ * Pause a flash sale
+ */
+export async function pauseFlashSale(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const updateQuery = `
+      UPDATE flash_sales 
+      SET status = 'paused', updated_at = NOW()
+      WHERE id = $1 AND status = 'active'
+      RETURNING id, name, status, start_time, end_time, created_at, updated_at
+    `;
+
+    const result = await query(updateQuery, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Flash sale not found or not in active status' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error pausing flash sale:', error);
+    res.status(500).json({ error: 'Failed to pause flash sale' });
+  }
+}
+
+/**
+ * POST /api/admin/flash-sales/:id/cancel
+ * Cancel a flash sale
+ */
+export async function cancelFlashSale(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const updateQuery = `
+      UPDATE flash_sales 
+      SET status = 'cancelled', updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, name, status, start_time, end_time, created_at, updated_at
+    `;
+
+    const result = await query(updateQuery, [id]);
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Flash sale not found' });
     }
 
-    if (sale.status === 'active') {
-      return res
-        .status(400)
-        .json({ error: 'Cannot delete active flash sale. Pause or cancel first.' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error cancelling flash sale:', error);
+    res.status(500).json({ error: 'Failed to cancel flash sale' });
+  }
+}
+
+/**
+ * DELETE /api/admin/flash-sales/:id
+ * Delete a flash sale
+ */
+export async function deleteFlashSale(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    // Delete associated products first
+    await query('DELETE FROM flash_sale_products WHERE flash_sale_id = $1', [id]);
+
+    // Delete the flash sale
+    const deleteQuery = 'DELETE FROM flash_sales WHERE id = $1 RETURNING id';
+    const result = await query(deleteQuery, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Flash sale not found' });
     }
-
-    // Delete products association
-    await new Promise<void>((resolve, reject) => {
-      db.run('DELETE FROM flash_sale_products WHERE flash_sale_id = ?', [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-
-    // Delete sale
-    await new Promise<void>((resolve, reject) => {
-      db.run('DELETE FROM flash_sales WHERE id = ?', [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
 
     res.json({ message: 'Flash sale deleted successfully' });
   } catch (error) {
     console.error('Error deleting flash sale:', error);
     res.status(500).json({ error: 'Failed to delete flash sale' });
   }
-};
+}
 
-export const duplicateFlashSale = async (req: Request, res: Response) => {
+/**
+ * GET /api/admin/flash-sales/:id/analytics
+ * Get flash sale analytics
+ */
+export async function getFlashSaleAnalytics(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    if (!id) {
-      return res.status(400).json({ error: 'Sale ID is required' });
-    }
-
-    // Get original sale
-    const query = `SELECT * FROM flash_sales WHERE id = ?`;
-    const originalSale = await new Promise<any>((resolve, reject) => {
-      db.get(query, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    if (!originalSale) {
-      return res.status(404).json({ error: 'Flash sale not found' });
-    }
-
-    // Get product IDs
-    const productsQuery = `SELECT product_id FROM flash_sale_products WHERE flash_sale_id = ?`;
-    const products = await new Promise<any[]>((resolve, reject) => {
-      db.all(productsQuery, [id], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
-
-    // Create duplicate with new name
-    const duplicateName = `${originalSale.name} (Copy)`;
-    const createQuery = `
-      INSERT INTO flash_sales 
-      (name, description, discount_percentage, start_time, end_time, status, 
-       max_purchases_per_user, total_inventory, remaining_inventory, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    const analyticsQuery = `
+      SELECT 
+        fs.id,
+        fs.name,
+        fs.status,
+        fs.total_inventory,
+        fs.remaining_inventory,
+        (fs.total_inventory - fs.remaining_inventory) as sold_count,
+        COUNT(DISTINCT o.id) as order_count,
+        COUNT(DISTINCT o.user_id) as unique_customers,
+        COALESCE(SUM(o.total_price), 0) as total_revenue,
+        fs.start_time,
+        fs.end_time,
+        fs.created_at
+      FROM flash_sales fs
+      LEFT JOIN orders o ON o.flash_sale_id = fs.id
+      WHERE fs.id = $1
+      GROUP BY fs.id
     `;
 
-    const newSale = await new Promise<any>((resolve, reject) => {
-      db.run(
-        createQuery,
-        [
-          duplicateName,
-          originalSale.description,
-          originalSale.discount_percentage,
-          originalSale.start_time,
-          originalSale.end_time,
-          'draft',
-          originalSale.max_purchases_per_user,
-          originalSale.total_inventory,
-          originalSale.total_inventory,
-        ],
-        function (err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID });
-        }
-      );
-    });
+    const result = await query(analyticsQuery, [id]);
 
-    // Copy products
-    if (products.length > 0) {
-      const insertQuery = `INSERT INTO flash_sale_products (flash_sale_id, product_id) VALUES (?, ?)`;
-      for (const product of products) {
-        await new Promise<void>((resolve, reject) => {
-          db.run(insertQuery, [newSale.id, product.product_id], (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
-      }
-    }
-
-    res.status(201).json({
-      id: newSale.id,
-      name: duplicateName,
-      message: 'Flash sale duplicated successfully',
-    });
-  } catch (error) {
-    console.error('Error duplicating flash sale:', error);
-    res.status(500).json({ error: 'Failed to duplicate flash sale' });
-  }
-};
-
-export const bulkUpdateFlashSales = async (req: Request, res: Response) => {
-  try {
-    const { sale_ids, action, status } = req.body;
-
-    if (!sale_ids || !Array.isArray(sale_ids) || sale_ids.length === 0) {
-      return res.status(400).json({ error: 'sale_ids must be a non-empty array' });
-    }
-
-    if (!action) {
-      return res.status(400).json({ error: 'action is required (activate, pause, cancel)' });
-    }
-
-    const validActions = ['activate', 'pause', 'cancel'];
-    if (!validActions.includes(action)) {
-      return res
-        .status(400)
-        .json({ error: `Invalid action. Must be one of: ${validActions.join(', ')}` });
-    }
-
-    const statusMap: Record<string, string> = {
-      activate: 'active',
-      pause: 'paused',
-      cancel: 'cancelled',
-    };
-
-    const newStatus = statusMap[action];
-    const placeholders = sale_ids.map(() => '?').join(',');
-    const updateQuery = `UPDATE flash_sales SET status = ?, updated_at = NOW() WHERE id IN (${placeholders})`;
-
-    await new Promise<void>((resolve, reject) => {
-      db.run(updateQuery, [newStatus, ...sale_ids], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-
-    res.json({
-      message: `Successfully performed '${action}' on ${sale_ids.length} sales`,
-      updated_count: sale_ids.length,
-      status: newStatus,
-    });
-  } catch (error) {
-    console.error('Error in bulk update:', error);
-    res.status(500).json({ error: 'Failed to perform bulk operation' });
-  }
-};
-
-export const getFlashSaleList = async (req: Request, res: Response) => {
-  try {
-    const { status, limit = 50, offset = 0 } = req.query;
-
-    let query = 'SELECT * FROM flash_sales';
-    const params: any[] = [];
-
-    if (status) {
-      query += ' WHERE status = ?';
-      params.push(status);
-    }
-
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit as string) || 50, parseInt(offset as string) || 0);
-
-    const sales = await new Promise<any[]>((resolve, reject) => {
-      db.all(query, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
-
-    // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM flash_sales';
-    if (status) {
-      countQuery += ' WHERE status = ?';
-    }
-
-    const countResult = await new Promise<any>((resolve, reject) => {
-      db.get(countQuery, status ? [status] : [], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    res.json({
-      data: sales,
-      pagination: {
-        total: countResult.total,
-        limit: parseInt(limit as string) || 50,
-        offset: parseInt(offset as string) || 0,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching flash sales:', error);
-    res.status(500).json({ error: 'Failed to fetch flash sales' });
-  }
-};
-
-export const getFlashSaleById = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    if (!id) {
-      return res.status(400).json({ error: 'Sale ID is required' });
-    }
-
-    const query = `SELECT * FROM flash_sales WHERE id = ?`;
-    const sale = await new Promise<any>((resolve, reject) => {
-      db.get(query, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-
-    if (!sale) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Flash sale not found' });
     }
 
-    // Get products
-    const productsQuery = `SELECT product_id FROM flash_sale_products WHERE flash_sale_id = ?`;
-    const products = await new Promise<any[]>((resolve, reject) => {
-      db.all(productsQuery, [id], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows?.map((r) => r.product_id) || []);
-      });
-    });
-
-    res.json({
-      ...sale,
-      product_ids: products,
-    });
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching flash sale:', error);
-    res.status(500).json({ error: 'Failed to fetch flash sale' });
+    console.error('Error fetching flash sale analytics:', error);
+    res.status(500).json({ error: 'Failed to fetch flash sale analytics' });
   }
-};
+}

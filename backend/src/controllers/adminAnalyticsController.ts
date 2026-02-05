@@ -41,14 +41,24 @@ export class AdminAnalyticsController {
       );
 
       // Calculate sales metrics
+      const viewers = new Set(
+        filteredEvents
+          .filter((e) => e.event_type === 'sale_view' && e.user_id)
+          .map((e) => e.user_id!)
+      ).size;
+
+      const purchasers = new Set(
+        filteredEvents
+          .filter((e) => e.event_type === 'user_purchase_complete' && e.user_id)
+          .map((e) => e.user_id!)
+      ).size;
+
+      const conversionRate = viewers > 0 ? (purchasers / viewers) * 100 : 0;
+
       const salesMetrics = {
         time_period: { start, end },
         total_views: filteredEvents.filter((e) => e.event_type === 'sale_view').length,
-        unique_viewers: new Set(
-          filteredEvents
-            .filter((e) => e.event_type === 'sale_view' && e.user_id)
-            .map((e) => e.user_id!)
-        ).size,
+        unique_viewers: viewers,
         queue_joins: filteredEvents.filter((e) => e.event_type === 'user_join_queue').length,
         checkout_starts: filteredEvents.filter((e) => e.event_type === 'user_checkout_start')
           .length,
@@ -56,18 +66,9 @@ export class AdminAnalyticsController {
         total_revenue: filteredEvents
           .filter((e) => e.event_type === 'user_purchase_complete' && e.amount)
           .reduce((sum, e) => sum + (e.amount || 0), 0),
+        conversion_rate: conversionRate,
         aggregations: Array.from(aggregations.values()),
       };
-
-      // Calculate conversion rate
-      const viewers = salesMetrics.unique_viewers;
-      const purchasers = new Set(
-        filteredEvents
-          .filter((e) => e.event_type === 'user_purchase_complete' && e.user_id)
-          .map((e) => e.user_id!)
-      ).size;
-
-      salesMetrics.conversion_rate = viewers > 0 ? (purchasers / viewers) * 100 : 0;
 
       res.json({
         success: true,

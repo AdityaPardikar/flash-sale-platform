@@ -4,11 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import LineChart, { LineChartDataPoint } from '../components/admin/charts/LineChart';
-import BarChart, { BarChartDataPoint } from '../components/admin/charts/BarChart';
-import PieChart, { PieChartDataPoint } from '../components/admin/charts/PieChart';
-import FunnelChart, { FunnelChartDataPoint } from '../components/admin/charts/FunnelChart';
-import { API } from '../services/api';
+import { LineChart, LineChartDataPoint } from '../../components/admin/charts/LineChart';
+import { BarChart, BarChartDataPoint } from '../../components/admin/charts/BarChart';
+import { PieChart, PieChartDataPoint } from '../../components/admin/charts/PieChart';
+import { FunnelChart, FunnelChartDataPoint } from '../../components/admin/charts/FunnelChart';
+import { API } from '../../services/api';
 
 interface AnalyticsPeriod {
   label: string;

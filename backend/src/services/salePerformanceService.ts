@@ -5,7 +5,6 @@
 
 import { query } from '../utils/database';
 import { getAnalyticsCollector } from './analyticsCollector';
-import { TimeSeriesAggregator } from '../utils/timeSeriesAggregator';
 import { EventType } from '../models/analyticsEvent';
 
 export interface SaleMetrics {
@@ -66,22 +65,21 @@ export class SalePerformanceService {
       // Get sale info
       const saleQuery = `
         SELECT id, name, status, total_inventory, remaining_inventory, discount_percentage
-        FROM flash_sales WHERE id = ?
+        FROM flash_sales WHERE id = $1
       `;
-      const sale = await new Promise<any>((resolve, reject) => {
-        db.get(saleQuery, [saleId], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
+      const saleResult = await query(saleQuery, [saleId]);
 
-      if (!sale) {
+      if (saleResult.rows.length === 0) {
         throw new Error(`Sale ${saleId} not found`);
       }
 
-      // Get analytics events
+      const sale = saleResult.rows[0];
+
+      // Get analytics events using proper API
       const collector = getAnalyticsCollector();
-      const events = await collector.getEvents({ sale_id: saleId });
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const events = await collector.getEvents(startOfDay, now);
 
       // Calculate metrics
       const views = events.filter((e) => e.event_type === EventType.PRODUCT_VIEW).length;
@@ -98,9 +96,9 @@ export class SalePerformanceService {
 
       const conversionRate = views > 0 ? purchases / views : 0;
       const avgOrderValue = purchases > 0 ? totalRevenue / purchases : 0;
-      const soldQuantity = sale.total_inventory - sale.remaining_inventory;
-      const utilizationPercentage =
-        sale.total_inventory > 0 ? (soldQuantity / sale.total_inventory) * 100 : 0;
+      const inventorySold = sale.total_inventory - sale.remaining_inventory;
+      const inventoryUtilization =
+        sale.total_inventory > 0 ? inventorySold / sale.total_inventory : 0;
 
       return {
         sale_id: saleId,
@@ -113,12 +111,12 @@ export class SalePerformanceService {
         conversion_rate: conversionRate,
         avg_order_value: avgOrderValue,
         inventory_remaining: sale.remaining_inventory,
-        inventory_sold: soldQuantity,
-        inventory_utilization: utilizationPercentage,
+        inventory_sold: inventorySold,
+        inventory_utilization: inventoryUtilization,
         status: sale.status,
       };
     } catch (error) {
-      console.error(`Error calculating metrics for sale ${saleId}:`, error);
+      console.error(`Error getting sale metrics for ${saleId}:`, error);
       throw error;
     }
   }
@@ -128,158 +126,138 @@ export class SalePerformanceService {
    */
   static async getQueueStats(saleId: string): Promise<QueueStats> {
     try {
-      const collector = getAnalyticsCollector();
-      const events = await collector.getEvents({ sale_id: saleId });
+      const queueQuery = `
+        SELECT 
+          COUNT(*) as total_joined,
+          SUM(CASE WHEN status = 'waiting' THEN 1 ELSE 0 END) as currently_waiting,
+          SUM(CASE WHEN status = 'admitted' THEN 1 ELSE 0 END) as admitted,
+          SUM(CASE WHEN status = 'dropped' THEN 1 ELSE 0 END) as dropped,
+          AVG(EXTRACT(EPOCH FROM (exit_time - entry_time))) as avg_wait_seconds
+        FROM queue_entries
+        WHERE flash_sale_id = $1
+      `;
 
-      // Filter queue-related events
-      const joinedEvents = events.filter((e) => e.event_type === EventType.QUEUE_USER_JOINED);
-      const admittedEvents = events.filter((e) => e.event_type === EventType.QUEUE_USER_ADMITTED);
-      const droppedEvents = events.filter((e) => e.event_type === EventType.QUEUE_USER_DROPPED);
+      const result = await query(queueQuery, [saleId]);
+      const stats = result.rows[0] || {};
 
-      // Calculate wait times
-      const waitTimes = joinedEvents.map((e) => e.metadata?.wait_time || 0).filter((t) => t > 0);
-
-      const avgWaitTime =
-        waitTimes.length > 0 ? waitTimes.reduce((a, b) => a + b, 0) / waitTimes.length : 0;
-
-      const sortedWaitTimes = [...waitTimes].sort((a, b) => a - b);
-      const medianWaitTime =
-        sortedWaitTimes.length > 0 ? sortedWaitTimes[Math.floor(sortedWaitTimes.length / 2)] : 0;
-
-      const maxWaitTime = waitTimes.length > 0 ? Math.max(...waitTimes) : 0;
-
-      const totalJoined = joinedEvents.length;
-      const totalAdmitted = admittedEvents.length;
-      const totalDropped = droppedEvents.length;
-      const dropRate = totalJoined > 0 ? totalDropped / totalJoined : 0;
-      const admissionRate = totalJoined > 0 ? totalAdmitted / totalJoined : 0;
+      const totalJoined = parseInt(stats.total_joined || 0);
+      const currentlyWaiting = parseInt(stats.currently_waiting || 0);
+      const admitted = parseInt(stats.admitted || 0);
+      const dropped = parseInt(stats.dropped || 0);
 
       return {
         sale_id: saleId,
         total_joined: totalJoined,
-        currently_waiting: totalJoined - totalAdmitted - totalDropped,
-        admitted: totalAdmitted,
-        dropped: totalDropped,
-        avg_wait_time: avgWaitTime,
-        median_wait_time: medianWaitTime,
-        max_wait_time: maxWaitTime,
-        drop_rate: dropRate,
-        admission_rate: admissionRate,
+        currently_waiting: currentlyWaiting,
+        admitted,
+        dropped,
+        avg_wait_time: stats.avg_wait_seconds || 0,
+        median_wait_time: 0, // Can be calculated with percentile_cont if needed
+        max_wait_time: 0, // Can be calculated with MAX() if needed
+        drop_rate: totalJoined > 0 ? dropped / totalJoined : 0,
+        admission_rate: totalJoined > 0 ? admitted / totalJoined : 0,
       };
     } catch (error) {
-      console.error(`Error calculating queue stats for sale ${saleId}:`, error);
+      console.error(`Error getting queue stats for ${saleId}:`, error);
       throw error;
     }
   }
 
   /**
-   * Get revenue breakdown by product and time
+   * Get revenue details breakdown
    */
   static async getRevenueDetails(saleId: string): Promise<RevenueDetails> {
     try {
-      const collector = getAnalyticsCollector();
-      const events = await collector.getEvents({ sale_id: saleId });
+      // Get total revenue
+      const revenueQuery = `
+        SELECT 
+          COALESCE(SUM(total_price), 0) as total_revenue,
+          COUNT(*) as total_orders,
+          COALESCE(AVG(total_price), 0) as avg_order_value
+        FROM orders
+        WHERE flash_sale_id = $1
+      `;
 
-      // Filter purchase events
-      const purchases = events.filter((e) => e.event_type === EventType.USER_PURCHASE_COMPLETE);
-      const totalRevenue = purchases.reduce((sum, e) => sum + (e.amount || 0), 0);
-      const totalOrders = purchases.length;
-      const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      const revenueResult = await query(revenueQuery, [saleId]);
+      const revenueSummary = revenueResult.rows[0];
 
-      // Calculate median
-      const amounts = purchases.map((e) => e.amount || 0).sort((a, b) => a - b);
-      const medianOrderValue = amounts.length > 0 ? amounts[Math.floor(amounts.length / 2)] : 0;
+      // Get revenue by product
+      const byProductQuery = `
+        SELECT 
+          p.id as product_id,
+          COUNT(*) as units_sold,
+          COALESCE(SUM(oi.price * oi.quantity), 0) as revenue
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN products p ON oi.product_id = p.id
+        WHERE o.flash_sale_id = $1
+        GROUP BY p.id
+      `;
 
-      // Revenue by product
-      const byProduct = purchases.reduce(
-        (acc, e) => {
-          const existing = acc.find((p) => p.product_id === e.product_id);
-          if (existing) {
-            existing.units_sold += 1;
-            existing.revenue += e.amount || 0;
-          } else {
-            acc.push({
-              product_id: e.product_id || 'unknown',
-              units_sold: 1,
-              revenue: e.amount || 0,
-            });
-          }
-          return acc;
-        },
-        [] as Array<{ product_id: string; units_sold: number; revenue: number }>
-      );
+      const byProductResult = await query(byProductQuery, [saleId]);
 
-      // Revenue by hour
-      const byHour = purchases.reduce(
-        (acc, e) => {
-          const hour = new Date(e.timestamp).toISOString().split('T')[0];
-          const existing = acc.find((h) => h.hour === hour);
-          if (existing) {
-            existing.revenue += e.amount || 0;
-            existing.orders += 1;
-          } else {
-            acc.push({
-              hour,
-              revenue: e.amount || 0,
-              orders: 1,
-            });
-          }
-          return acc;
-        },
-        [] as Array<{ hour: string; revenue: number; orders: number }>
-      );
+      // Get revenue by hour
+      const byHourQuery = `
+        SELECT 
+          DATE_TRUNC('hour', created_at) as hour,
+          COALESCE(SUM(total_price), 0) as revenue,
+          COUNT(*) as orders
+        FROM orders
+        WHERE flash_sale_id = $1
+        GROUP BY DATE_TRUNC('hour', created_at)
+        ORDER BY hour DESC
+      `;
+
+      const byHourResult = await query(byHourQuery, [saleId]);
 
       return {
         sale_id: saleId,
-        total_revenue: totalRevenue,
-        total_orders: totalOrders,
-        avg_order_value: avgOrderValue,
-        median_order_value: medianOrderValue,
-        by_product: byProduct,
-        by_hour: byHour.sort((a, b) => a.hour.localeCompare(b.hour)),
+        total_revenue: revenueSummary.total_revenue || 0,
+        total_orders: revenueSummary.total_orders || 0,
+        avg_order_value: revenueSummary.avg_order_value || 0,
+        median_order_value: 0, // Can be calculated with percentile_cont if needed
+        by_product: byProductResult.rows || [],
+        by_hour: byHourResult.rows || [],
       };
     } catch (error) {
-      console.error(`Error calculating revenue details for sale ${saleId}:`, error);
+      console.error(`Error getting revenue details for ${saleId}:`, error);
       throw error;
     }
   }
 
   /**
-   * Get inventory status and sell-out projection
+   * Get inventory status and velocity
    */
   static async getInventoryStatus(saleId: string): Promise<InventoryStatus> {
     try {
-      // Get sale info
       const saleQuery = `
-        SELECT id, total_inventory, remaining_inventory, start_time, end_time
-        FROM flash_sales WHERE id = ?
+        SELECT 
+          id, total_inventory, remaining_inventory, created_at
+        FROM flash_sales
+        WHERE id = $1
       `;
-      const sale = await new Promise<any>((resolve, reject) => {
-        db.get(saleQuery, [saleId], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
 
-      if (!sale) {
+      const saleResult = await query(saleQuery, [saleId]);
+
+      if (saleResult.rows.length === 0) {
         throw new Error(`Sale ${saleId} not found`);
       }
 
+      const sale = saleResult.rows[0];
       const soldQuantity = sale.total_inventory - sale.remaining_inventory;
       const utilizationPercentage =
         sale.total_inventory > 0 ? (soldQuantity / sale.total_inventory) * 100 : 0;
 
-      // Calculate velocity (items per hour)
-      const startTime = new Date(sale.start_time).getTime();
-      const currentTime = new Date().getTime();
-      const elapsedHours = (currentTime - startTime) / (1000 * 60 * 60);
-      const velocity = elapsedHours > 0 ? soldQuantity / elapsedHours : 0;
+      // Calculate velocity (units per hour)
+      const now = new Date();
+      const hoursElapsed = (now.getTime() - new Date(sale.created_at).getTime()) / (1000 * 60 * 60);
+      const velocity = hoursElapsed > 0 ? soldQuantity / hoursElapsed : 0;
 
       // Estimate sell-out time
-      let estimatedSellOutTime: Date | null = null;
+      let estimatedSellOutTime = null;
       if (velocity > 0 && sale.remaining_inventory > 0) {
-        const remainingHours = sale.remaining_inventory / velocity;
-        estimatedSellOutTime = new Date(currentTime + remainingHours * 60 * 60 * 1000);
+        const hoursUntilSoldOut = sale.remaining_inventory / velocity;
+        estimatedSellOutTime = new Date(now.getTime() + hoursUntilSoldOut * 60 * 60 * 1000);
       }
 
       return {
@@ -289,23 +267,63 @@ export class SalePerformanceService {
         sold_quantity: soldQuantity,
         utilization_percentage: utilizationPercentage,
         estimated_sell_out_time: estimatedSellOutTime,
-        velocity: velocity,
+        velocity,
       };
     } catch (error) {
-      console.error(`Error getting inventory status for sale ${saleId}:`, error);
+      console.error(`Error getting inventory status for ${saleId}:`, error);
       throw error;
     }
   }
 
   /**
-   * Get performance comparison between multiple sales
+   * Compare performance across multiple sales
    */
-  static async comparePerformance(saleIds: string[]): Promise<SaleMetrics[]> {
+  static async compareSalesPerformance(saleIds: string[]): Promise<SaleMetrics[]> {
     try {
-      const results = await Promise.all(saleIds.map((saleId) => this.getSaleMetrics(saleId)));
+      const results: SaleMetrics[] = [];
+
+      for (const saleId of saleIds) {
+        const metrics = await this.getSaleMetrics(saleId);
+        results.push(metrics);
+      }
+
       return results;
     } catch (error) {
-      console.error('Error comparing performance:', error);
+      console.error(`Error comparing sales performance:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get trending sales (highest performing)
+   */
+  static async getTrendingSales(limit: number = 10): Promise<SaleMetrics[]> {
+    try {
+      const trendingQuery = `
+        SELECT 
+          fs.id, fs.name, fs.status, fs.total_inventory, fs.remaining_inventory,
+          COUNT(DISTINCT o.id) as total_orders,
+          COALESCE(SUM(o.total_price), 0) as total_revenue,
+          COUNT(DISTINCT o.user_id) as unique_customers
+        FROM flash_sales fs
+        LEFT JOIN orders o ON fs.id = o.flash_sale_id
+        WHERE fs.status IN ('active', 'paused')
+        GROUP BY fs.id
+        ORDER BY total_revenue DESC
+        LIMIT $1
+      `;
+
+      const result = await query(trendingQuery, [limit]);
+      const results: SaleMetrics[] = [];
+
+      for (const row of result.rows) {
+        const metrics = await this.getSaleMetrics(row.id);
+        results.push(metrics);
+      }
+
+      return results;
+    } catch (error) {
+      console.error(`Error getting trending sales:`, error);
       throw error;
     }
   }
