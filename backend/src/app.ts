@@ -23,7 +23,29 @@ import adminRoutes from './routes/adminRoutes';
 import { backgroundJobRunner } from './services/backgroundJobRunner';
 import flashSaleService from './services/flashSaleService';
 
+// Week 4 imports - Day 5: Health & Monitoring
+import healthRoutes from './routes/healthRoutes';
+import { logger } from './utils/logger';
+import { requestLogger } from './middleware/requestLogger';
+import auditLogger from './middleware/auditLogger';
+
+// Week 4 imports - Day 6: Performance & Caching  
+import { cacheMiddleware } from './middleware/cacheMiddleware';
+import { getRateLimitForPath } from './utils/rateLimitConfig';
+
+// Week 4 imports - Day 7: Security & Privacy
+import { securityHeaders } from './middleware/securityHeaders';
+import { inputValidator } from './middleware/inputValidator';
+import { sanitizeObject } from './utils/sanitizer';
+import privacyRoutes from './routes/privacyRoutes';
+
 const app: Express = express();
+
+// Week 4 Day 7: Security Headers (applied before other middleware)
+app.use(securityHeaders);
+
+// Week 4 Day 5: Request logging (log all incoming requests)  
+app.use(requestLogger);
 
 // Security middleware
 app.use(helmet());
@@ -34,60 +56,38 @@ app.use(
   })
 );
 
+// Week 4 Day 7: Input sanitization (clean inputs early)
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitizeObject(req.body);
+  }
+  next();
+});
+
+// Week 4 Day 7: Input validation middleware
+app.use(inputValidator);
+
 // Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Rate limiting
+// Week 4 Day 6: Advanced rate limiting configuration
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Fallback to general limit
   message: 'Too many requests from this IP, please try again later',
 });
-
 app.use(limiter);
 
+// Week 4 Day 6: Cache middleware for performance
+app.use(cacheMiddleware);
+
+// Week 4 Day 5: Audit logging (track important actions)
+app.use(auditLogger());
+
 // Health check endpoint
-app.get('/health', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const [dbHealthy, redisHealth] = await Promise.all([
-      testDatabaseConnection(),
-      getRedisHealth(),
-    ]);
-
-    res.json({
-      status: dbHealthy && redisHealth.status === 'ok' ? 'ok' : 'degraded',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      environment: process.env.NODE_ENV || 'development',
-      services: {
-        database: dbHealthy ? 'ok' : 'unhealthy',
-        redis: redisHealth.status,
-      },
-      metrics: {
-        redisLatencyMs: redisHealth.latencyMs,
-        redisVersion: redisHealth.version,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.get('/health/redis', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const redisHealth = await getRedisHealth();
-    res.json({
-      status: redisHealth.status,
-      latencyMs: redisHealth.latencyMs,
-      version: redisHealth.version,
-      error: redisHealth.error,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+// Week 4 Day 5: Basic health endpoints moved to comprehensive health routes (/api/v1/health/*)
+// Old basic health check replaced with full health monitoring system
 
 const enableDebugRoutes = process.env.ENABLE_DEBUG_ROUTES === 'true';
 
@@ -264,8 +264,14 @@ apiRouter.get('/orders', authMiddleware, (req: Request, res: Response) => {
   });
 });
 
-// Admin routes
+// Admin routes  
 apiRouter.use('/admin', adminRoutes);
+
+// Week 4 Day 5: Comprehensive health monitoring routes
+apiRouter.use('/health', healthRoutes);
+
+// Week 4 Day 7: Privacy and compliance routes
+apiRouter.use('/privacy', privacyRoutes);
 
 // Mount API router
 app.use('/api/v1', apiRouter);
@@ -312,9 +318,21 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing server');
+  console.log('SIGINT signal received: closing server');  
   backgroundJobRunner.stop();
   process.exit(0);
+});
+
+// Week 4 Integration Complete - Log startup confirmation
+logger.info('🚀 Flash Sale Platform - Week 4 Integration Complete!', {
+  features: [
+    'Health Monitoring (/api/v1/health/*)',
+    'Request Logging & Audit Trail', 
+    'Advanced Rate Limiting & Caching',
+    'Security Headers & Input Validation',
+    'Privacy & Compliance Routes (/api/v1/privacy/*)'
+  ],
+  timestamp: new Date().toISOString()
 });
 
 export default app;
