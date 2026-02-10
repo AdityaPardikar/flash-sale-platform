@@ -20,6 +20,11 @@ import flashSaleRoutes from './routes/flashSaleRoutes';
 import queueRoutes from './routes/queueRoutes';
 import orderRoutes from './routes/orderRoutes';
 import adminRoutes from './routes/adminRoutes';
+
+// Week 5 Day 1: Payment & Cart routes
+import paymentRoutes from './routes/paymentRoutes';
+import cartRoutes from './routes/cartRoutes';
+
 import { backgroundJobRunner } from './services/backgroundJobRunner';
 import flashSaleService from './services/flashSaleService';
 
@@ -29,7 +34,7 @@ import { logger } from './utils/logger';
 import { requestLogger } from './middleware/requestLogger';
 import auditLogger from './middleware/auditLogger';
 
-// Week 4 imports - Day 6: Performance & Caching  
+// Week 4 imports - Day 6: Performance & Caching
 import { cacheMiddleware } from './middleware/cacheMiddleware';
 import { getRateLimitForPath } from './utils/rateLimitConfig';
 
@@ -44,7 +49,7 @@ const app: Express = express();
 // Week 4 Day 7: Security Headers (applied before other middleware)
 app.use(securityHeaders);
 
-// Week 4 Day 5: Request logging (log all incoming requests)  
+// Week 4 Day 5: Request logging (log all incoming requests)
 app.use(requestLogger);
 
 // Security middleware
@@ -264,8 +269,14 @@ apiRouter.get('/orders', authMiddleware, (req: Request, res: Response) => {
   });
 });
 
-// Admin routes  
+// Admin routes
 apiRouter.use('/admin', adminRoutes);
+
+// Week 5 Day 1: Payment routes
+apiRouter.use('/payments', paymentRoutes);
+
+// Week 5 Day 1: Cart routes
+apiRouter.use('/cart', cartRoutes);
 
 // Week 4 Day 5: Comprehensive health monitoring routes
 apiRouter.use('/health', healthRoutes);
@@ -318,7 +329,7 @@ process.on('SIGTERM', () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT signal received: closing server');  
+  console.log('SIGINT signal received: closing server');
   backgroundJobRunner.stop();
   process.exit(0);
 });
@@ -327,12 +338,12 @@ process.on('SIGINT', () => {
 logger.info('🚀 Flash Sale Platform - Week 4 Integration Complete!', {
   features: [
     'Health Monitoring (/api/v1/health/*)',
-    'Request Logging & Audit Trail', 
+    'Request Logging & Audit Trail',
     'Advanced Rate Limiting & Caching',
     'Security Headers & Input Validation',
-    'Privacy & Compliance Routes (/api/v1/privacy/*)'
+    'Privacy & Compliance Routes (/api/v1/privacy/*)',
   ],
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
 });
 
 export default app;

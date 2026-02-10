@@ -153,3 +153,26 @@ export const generatePriceTiers = (
     };
   });
 };
+
+/**
+ * Calculate flash sale price with optional time-based discount
+ */
+export const calculateFlashPrice = (
+  basePrice: number,
+  discountPercentage: number,
+  timeRemaining?: number,
+  totalDuration?: number
+): number => {
+  // Base flash sale discount
+  let finalDiscount = discountPercentage;
+
+  // Optional: adjust discount based on time remaining (early bird gets bigger discount)
+  if (timeRemaining !== undefined && totalDuration !== undefined && totalDuration > 0) {
+    const timeProgress = 1 - timeRemaining / totalDuration;
+    // Reduce discount as time passes (max 10% reduction)
+    const timeAdjustment = timeProgress * 10;
+    finalDiscount = Math.max(discountPercentage - timeAdjustment, discountPercentage * 0.5);
+  }
+
+  return calculateDiscountedPrice(basePrice, finalDiscount);
+};

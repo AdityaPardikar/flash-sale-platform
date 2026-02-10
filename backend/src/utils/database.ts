@@ -42,4 +42,13 @@ export async function closePool(): Promise<void> {
   await pool.end();
 }
 
+// Alias for pool getter
+export function getPool(): Pool {
+  return pool;
+}
+
+// Re-export Pool type
+export { Pool };
+export type { QueryResult } from 'pg';
+
 export default pool;

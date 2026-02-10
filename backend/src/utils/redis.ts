@@ -87,4 +87,10 @@ export async function closeRedis(): Promise<void> {
   await redis.quit();
 }
 
+// Named exports for service compatibility
+export const redisClient = redis;
+export function isRedisConnected(): boolean {
+  return redis.status === 'ready';
+}
+
 export default redis;

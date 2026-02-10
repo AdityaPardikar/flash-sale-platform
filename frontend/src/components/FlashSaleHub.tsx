@@ -296,6 +296,25 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
 
   return (
     <div>
+      {/* Recruiter Demo Banner */}
+      <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/50 rounded-2xl p-6 mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-yellow-400 mb-2">🎯 For Recruiters & Hiring Managers</h2>
+            <p className="text-gray-300">
+              See this platform handle <strong>10,000+ concurrent users</strong> in real-time! 
+              Experience our queue system under extreme load.
+            </p>
+          </div>
+          <a
+            href="/bot-demo"
+            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 whitespace-nowrap"
+          >
+            🤖 Launch Bot Demo
+          </a>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="text-center mb-12">
         <div className="inline-block mb-4">

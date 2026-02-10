@@ -31,6 +31,24 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
 export const authenticateToken = authMiddleware;
 
+/**
+ * Optional authentication - allows both authenticated and guest users
+ * Sets req.user if token is valid, otherwise continues without error
+ */
+export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = payload;
+    }
+  }
+
+  next();
+}
+
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction): void {
   console.error('Error:', err);
   res.status(500).json({
