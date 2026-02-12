@@ -14,6 +14,9 @@ export const REDIS_KEYS = {
   PRICING_PREFIX: 'pricing',
   FRAUD_PREFIX: 'fraud',
   ANALYTICS_PREFIX: 'analytics',
+  // Week 5 Day 3: Queue & VIP Keys
+  VIP_PREFIX: 'vip',
+  QUEUE_PREFIX: 'queue',
 };
 
 export const REDIS_TTL_SECONDS = {
