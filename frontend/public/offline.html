@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Flash Sale Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .offline-container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .offline-icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(0.95);
+            }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        p {
+            font-size: 1.1rem;
+            color: #a0aec0;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .retry-button {
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .retry-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+        }
+
+        .offline-features {
+            margin-top: 50px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+        }
+
+        .offline-features h3 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .check-icon {
+            color: #4ecdc4;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📡</div>
+        <div class="status-badge">No Internet Connection</div>
+        <h1>You're Offline</h1>
+        <p>
+            Don't worry! Your actions are being saved and will sync automatically
+            when you're back online. Flash sales wait for no one, so get connected soon!
+        </p>
+        <button class="retry-button" onclick="window.location.reload()">
+            Try Again
+        </button>
+
+        <div class="offline-features">
+            <h3>✨ What you can still do:</h3>
+            <ul class="feature-list">
+                <li><span class="check-icon">✓</span> View cached products and sales</li>
+                <li><span class="check-icon">✓</span> Browse your cart (syncs when online)</li>
+                <li><span class="check-icon">✓</span> Check saved queue positions</li>
+                <li><span class="check-icon">✓</span> View your profile information</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Auto-retry connection
+        window.addEventListener('online', () => {
+            window.location.reload();
+        });
+
+        // Check connection every 5 seconds
+        setInterval(() => {
+            fetch('/api/health', { method: 'HEAD' })
+                .then(() => window.location.reload())
+                .catch(() => { });
+        }, 5000);
+    </script>
+</body>
+
+</html>
