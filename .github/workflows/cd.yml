@@ -1,0 +1,185 @@
+# ============================================
+# Flash Sale Platform - CD Pipeline
+# Week 5 Day 6: DevOps & Containerization
+# ============================================
+
+name: CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://staging.flash-sale.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: Update image tags
+        run: |
+          cd k8s
+          # Update backend image
+          sed -i 's|flash-sale-backend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}|g' backend-deployment.yaml
+          # Update frontend image
+          sed -i 's|flash-sale-frontend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.sha }}|g' frontend-deployment.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secrets.yaml
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/postgres.yaml
+          kubectl apply -f k8s/backend-deployment.yaml
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/backend -n flash-sale --timeout=300s
+          kubectl rollout status deployment/frontend -n flash-sale --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          # Wait for services to be ready
+          sleep 30
+
+          # Test health endpoint
+          curl -f https://staging.flash-sale.example.com/api/health || exit 1
+
+          echo "Staging deployment successful!"
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://flash-sale.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Update image tags
+        run: |
+          cd k8s
+          # Get version from tag or use SHA
+          VERSION="${{ github.ref_name }}"
+          if [[ "$VERSION" != v* ]]; then
+            VERSION="${{ github.sha }}"
+          fi
+
+          # Update backend image
+          sed -i "s|flash-sale-backend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${VERSION}|g" backend-deployment.yaml
+          # Update frontend image
+          sed -i "s|flash-sale-frontend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${VERSION}|g" frontend-deployment.yaml
+
+          # Production-specific settings
+          sed -i 's|replicas: 3|replicas: 5|g' backend-deployment.yaml
+          sed -i 's|replicas: 2|replicas: 3|g' frontend-deployment.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secrets.yaml
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/postgres.yaml
+          kubectl apply -f k8s/backend-deployment.yaml
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/backend -n flash-sale --timeout=600s
+          kubectl rollout status deployment/frontend -n flash-sale --timeout=600s
+
+      - name: Run production smoke tests
+        run: |
+          sleep 30
+
+          # Test health endpoint
+          curl -f https://flash-sale.example.com/api/health || exit 1
+
+          # Test critical endpoints
+          curl -f https://flash-sale.example.com/api/products || exit 1
+          curl -f https://flash-sale.example.com/api/flash-sales || exit 1
+
+          echo "Production deployment successful!"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Rollback on failure
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: failure()
+
+    steps:
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: Rollback Staging
+        if: needs.deploy-staging.result == 'failure'
+        run: |
+          kubectl rollout undo deployment/backend -n flash-sale
+          kubectl rollout undo deployment/frontend -n flash-sale
+          echo "Staging rollback completed"
+
+      - name: Rollback Production
+        if: needs.deploy-production.result == 'failure'
+        run: |
+          kubectl rollout undo deployment/backend -n flash-sale
+          kubectl rollout undo deployment/frontend -n flash-sale
+          echo "Production rollback completed"
+
+      - name: Notify on rollback
+        run: |
+          echo "Deployment failed and rollback was triggered"
+          # Add notification logic here (Slack, email, etc.)
