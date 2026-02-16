@@ -1,28 +1,40 @@
+# ============================================
+# Flash Sale Platform - Docker Compose
+# Week 5 Day 6: DevOps & Containerization
+# ============================================
+
 version: '3.9'
 
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: flash-sale-db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: flash_user
-      POSTGRES_PASSWORD: flash_password
-      POSTGRES_DB: flash_sale_db
+      POSTGRES_USER: ${DB_USER:-flash_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-flash_password}
+      POSTGRES_DB: ${DB_NAME:-flash_sale_db}
     ports:
-      - '5432:5432'
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U flash_user']
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-flash_user} -d ${DB_NAME:-flash_sale_db}']
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - flash-sale-network
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: flash-sale-cache
+    restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     healthcheck:
@@ -30,12 +42,76 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory 256mb 
+      --maxmemory-policy allkeys-lru
+    networks:
+      - flash-sale-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-production
+    container_name: flash-sale-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${DB_USER:-flash_user}:${DB_PASSWORD:-flash_password}@postgres:5432/${DB_NAME:-flash_sale_db}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+    ports:
+      - '${API_PORT:-3000}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    networks:
+      - flash-sale-network
+
+  # Frontend (Nginx)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend-production
+    container_name: flash-sale-web
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-80}:80'
+    depends_on:
+      - backend
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - flash-sale-network
+
+# Development override - use docker-compose.dev.yml
+# docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
 
 networks:
-  default:
+  flash-sale-network:
     name: flash-sale-network
+    driver: bridge

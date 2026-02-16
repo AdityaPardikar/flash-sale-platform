@@ -1,0 +1,12 @@
+# ============================================
+# Flash Sale Platform - Kubernetes Namespace
+# Week 5 Day 6: DevOps & Containerization
+# ============================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flash-sale
+  labels:
+    app.kubernetes.io/name: flash-sale
+    app.kubernetes.io/part-of: flash-sale-platform

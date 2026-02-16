@@ -1,0 +1,22 @@
+# ============================================
+# Flash Sale Platform - ConfigMap
+# Week 5 Day 6: DevOps & Containerization
+# ============================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flash-sale-config
+  namespace: flash-sale
+  labels:
+    app.kubernetes.io/name: flash-sale
+data:
+  NODE_ENV: 'production'
+  PORT: '3000'
+  CORS_ORIGIN: '*'
+  LOG_LEVEL: 'info'
+  REDIS_HOST: 'redis-service'
+  REDIS_PORT: '6379'
+  DB_HOST: 'postgres-service'
+  DB_PORT: '5432'
+  DB_NAME: 'flash_sale_db'
