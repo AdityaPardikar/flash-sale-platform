@@ -7,10 +7,12 @@ export default {
   moduleNameMapper: {
     '^(\.{1,2}/.*)\.js$': '$1',
   },
+  transformIgnorePatterns: ['/node_modules/(?!(uuid)/)'],
   transform: {
     '^.+\.tsx?$': [
       'ts-jest',
       {
+        useESM: false,
         tsconfig: {
           module: 'commonjs',
           esModuleInterop: true,

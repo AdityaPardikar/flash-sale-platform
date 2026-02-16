@@ -3,36 +3,39 @@
  * Week 5 Day 7: Testing & Quality Assurance
  */
 
-// Mock dependencies
-const mockRedisClient = {
-  zadd: jest.fn(),
-  zrank: jest.fn(),
-  zrange: jest.fn(),
-  zrangebyscore: jest.fn(),
-  zrem: jest.fn(),
-  zscore: jest.fn(),
-  zcard: jest.fn(),
-  get: jest.fn(),
-  set: jest.fn(),
-  hset: jest.fn(),
-  hgetall: jest.fn(),
-  lpush: jest.fn(),
-  llen: jest.fn(),
-  expire: jest.fn(),
-};
-
-const mockVipService = {
-  getMembership: jest.fn(),
-  getTierBenefits: jest.fn(),
-};
-
+// Mock dependencies before imports
 jest.mock('../utils/redis', () => ({
-  redisClient: mockRedisClient,
+  redisClient: {
+    zadd: jest.fn(),
+    zrank: jest.fn(),
+    zrange: jest.fn(),
+    zrangebyscore: jest.fn(),
+    zrem: jest.fn(),
+    zscore: jest.fn(),
+    zcard: jest.fn(),
+    get: jest.fn(),
+    set: jest.fn(),
+    hset: jest.fn(),
+    hgetall: jest.fn(),
+    lpush: jest.fn(),
+    llen: jest.fn(),
+    expire: jest.fn(),
+  },
   isRedisConnected: jest.fn(() => true),
 }));
 
 jest.mock('../services/vipService', () => ({
-  vipService: mockVipService,
+  vipService: {
+    getMembership: jest.fn(),
+    getBenefits: jest.fn(() => ({
+      earlyAccessMinutes: 0,
+      queuePriority: 1,
+      maxQuantityPerSale: 2,
+      exclusiveDeals: false,
+      freeShipping: false,
+      discountPercentage: 0,
+    })),
+  },
   VIPTier: {
     STANDARD: 'standard',
     SILVER: 'silver',
@@ -42,6 +45,11 @@ jest.mock('../services/vipService', () => ({
 }));
 
 import { priorityQueueService } from '../services/priorityQueueService';
+import { vipService } from '../services/vipService';
+import redisClient from '../utils/redis';
+
+const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
+const mockVipService = vipService as jest.Mocked<typeof vipService>;
 
 describe('Priority Queue Service', () => {
   beforeEach(() => {
