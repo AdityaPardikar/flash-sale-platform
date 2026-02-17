@@ -44,10 +44,26 @@ import { inputValidator } from './middleware/inputValidator';
 import { sanitizeObject } from './utils/sanitizer';
 import privacyRoutes from './routes/privacyRoutes';
 
+// Week 6 Day 1: Monitoring, Metrics & Observability
+import { metricsMiddleware } from './middleware/metricsMiddleware';
+import { correlationIdMiddleware } from './middleware/correlationId';
+import { tracingMiddleware } from './middleware/tracing';
+import metricsRoutes from './routes/metricsRoutes';
+import { metricsService } from './services/metricsService';
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
 app.use(securityHeaders);
+
+// Week 6 Day 1: Correlation ID (must be first – provides context for all downstream logging)
+app.use(correlationIdMiddleware);
+
+// Week 6 Day 1: Metrics collection middleware
+app.use(metricsMiddleware);
+
+// Week 6 Day 1: Distributed tracing
+app.use(tracingMiddleware);
 
 // Week 4 Day 5: Request logging (log all incoming requests)
 app.use(requestLogger);
@@ -284,6 +300,9 @@ apiRouter.use('/health', healthRoutes);
 // Week 4 Day 7: Privacy and compliance routes
 apiRouter.use('/privacy', privacyRoutes);
 
+// Week 6 Day 1: Metrics & observability routes
+apiRouter.use('/metrics', metricsRoutes);
+
 // Mount API router
 app.use('/api/v1', apiRouter);
 
@@ -319,29 +338,39 @@ app.listen(PORT, async () => {
   // Start background jobs
   backgroundJobRunner.start();
   console.log('✓ Background jobs started');
+
+  // Week 6 Day 1: Start metrics collection (event loop lag, runtime metrics)
+  metricsService.startCollecting();
+  console.log('✓ Metrics collection started');
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing server');
   backgroundJobRunner.stop();
+  metricsService.stopCollecting();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing server');
   backgroundJobRunner.stop();
+  metricsService.stopCollecting();
   process.exit(0);
 });
 
-// Week 4 Integration Complete - Log startup confirmation
-logger.info('🚀 Flash Sale Platform - Week 4 Integration Complete!', {
+// Week 6 Integration - Log startup confirmation
+logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
   features: [
     'Health Monitoring (/api/v1/health/*)',
     'Request Logging & Audit Trail',
     'Advanced Rate Limiting & Caching',
     'Security Headers & Input Validation',
     'Privacy & Compliance Routes (/api/v1/privacy/*)',
+    'Prometheus Metrics (/api/v1/metrics)',
+    'Correlation ID Tracking',
+    'Distributed Tracing',
+    'Structured JSON Logging',
   ],
   timestamp: new Date().toISOString(),
 });
