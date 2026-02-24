@@ -70,6 +70,12 @@ import { gracefulShutdown } from './utils/gracefulShutdown';
 import { circuitBreakerRegistry } from './utils/circuitBreaker';
 import { featureFlagService } from './services/featureFlagService';
 
+// Week 7 Day 1: Environment Validation
+import { validateAndReport } from './utils/envValidator';
+
+// Validate environment variables at startup (fails fast in production)
+validateAndReport();
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
