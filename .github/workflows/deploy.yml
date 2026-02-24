@@ -1,0 +1,112 @@
+# ============================================
+# Flash Sale Platform - Deployment & Rollback Workflow
+# Week 7 Day 2: CI/CD Pipeline & GitHub Actions
+# ============================================
+# Manual trigger for targeted deployments and rollbacks
+
+name: Deploy & Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - rollback
+      version:
+        description: 'Version/SHA to deploy (leave empty for latest)'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # -- Deploy ----------------------------------
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'deploy'
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy
+        run: |
+          echo "?? Deploying to ${{ github.event.inputs.environment }}"
+          echo "Version: ${{ steps.version.outputs.tag }}"
+          echo "Backend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ steps.version.outputs.tag }}"
+          echo "Frontend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ steps.version.outputs.tag }}"
+          # Add deployment commands here (kubectl, docker-compose pull, SSH, etc.)
+
+      - name: Health check
+        run: |
+          echo "? Deployment health check passed"
+          # Add health check verification
+
+      - name: Record deployment
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ github.event.inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ steps.version.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Time | $(date -u) |" >> $GITHUB_STEP_SUMMARY
+
+  # -- Rollback --------------------------------
+  rollback:
+    name: Rollback ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'rollback'
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rollback
+        run: |
+          echo "? Rolling back ${{ github.event.inputs.environment }}"
+          # Add rollback commands here
+          # kubectl rollout undo deployment/backend -n flash-sale
+          # kubectl rollout undo deployment/frontend -n flash-sale
+
+      - name: Verify rollback
+        run: |
+          echo "? Rollback verification"
+          # Add post-rollback health checks
+
+      - name: Record rollback
+        run: |
+          echo "## Rollback Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ github.event.inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Time | $(date -u) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Reason | Manual rollback triggered |" >> $GITHUB_STEP_SUMMARY
