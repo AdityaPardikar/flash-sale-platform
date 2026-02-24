@@ -51,6 +51,10 @@ import { tracingMiddleware } from './middleware/tracing';
 import metricsRoutes from './routes/metricsRoutes';
 import { metricsService } from './services/metricsService';
 
+// Week 6 Day 2: WebSocket Enhancement
+import { createServer } from 'http';
+import { websocketService } from './services/websocketService';
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
@@ -320,7 +324,11 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, async () => {
+// Create HTTP server and attach WebSocket
+const httpServer = createServer(app);
+websocketService.initialize(httpServer);
+
+httpServer.listen(PORT, async () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║   Flash Sale Platform - Backend API    ║
@@ -329,6 +337,7 @@ app.listen(PORT, async () => {
 ║ ✓ Port: ${PORT}                             ║
 ║ ✓ Environment: ${process.env.NODE_ENV || 'development'}         ║
 ║ ✓ Health: http://localhost:${PORT}/health      ║
+║ ✓ WebSocket: ws://localhost:${PORT}            ║
 ╚════════════════════════════════════════╝
   `);
 
@@ -342,18 +351,21 @@ app.listen(PORT, async () => {
   // Week 6 Day 1: Start metrics collection (event loop lag, runtime metrics)
   metricsService.startCollecting();
   console.log('✓ Metrics collection started');
+  console.log('✓ WebSocket server initialized');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing server');
+  await websocketService.shutdown();
   backgroundJobRunner.stop();
   metricsService.stopCollecting();
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing server');
+  await websocketService.shutdown();
   backgroundJobRunner.stop();
   metricsService.stopCollecting();
   process.exit(0);
@@ -371,6 +383,9 @@ logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
     'Correlation ID Tracking',
     'Distributed Tracing',
     'Structured JSON Logging',
+    'Real-Time WebSocket (namespaces: /, /queue, /notifications, /admin)',
+    'Event Broadcasting & Room Management',
+    'Socket Authentication & Rate Limiting',
   ],
   timestamp: new Date().toISOString(),
 });
