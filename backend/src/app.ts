@@ -55,6 +55,9 @@ import { metricsService } from './services/metricsService';
 import { createServer } from 'http';
 import { websocketService } from './services/websocketService';
 
+// Week 6 Day 3: Internationalization & Localization
+import { localizationMiddleware } from './middleware/localization';
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
@@ -62,6 +65,9 @@ app.use(securityHeaders);
 
 // Week 6 Day 1: Correlation ID (must be first – provides context for all downstream logging)
 app.use(correlationIdMiddleware);
+
+// Week 6 Day 3: Localization (detect locale early for error messages)
+app.use(localizationMiddleware);
 
 // Week 6 Day 1: Metrics collection middleware
 app.use(metricsMiddleware);
@@ -386,6 +392,9 @@ logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
     'Real-Time WebSocket (namespaces: /, /queue, /notifications, /admin)',
     'Event Broadcasting & Room Management',
     'Socket Authentication & Rate Limiting',
+    'Internationalization (5 languages: en, es, fr, hi, ar)',
+    'Localized API Error Messages',
+    'Multi-Currency Support (USD, EUR, GBP, INR, SAR)',
   ],
   timestamp: new Date().toISOString(),
 });

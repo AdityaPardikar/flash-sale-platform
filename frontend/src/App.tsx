@@ -9,6 +9,7 @@ import ShoppingCart from './pages/ShoppingCart';
 import Checkout from './pages/Checkout';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import ConnectionStatus from './components/ConnectionStatus';
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -57,6 +58,7 @@ const App: React.FC = () => {
                 </nav>
 
                 <div className="flex items-center space-x-4">
+                  <LanguageSwitcher compact />
                   {user ? (
                     <div className="flex items-center space-x-3">
                       <span className="text-white">Welcome, {user.email}</span>
