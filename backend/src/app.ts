@@ -58,6 +58,9 @@ import { websocketService } from './services/websocketService';
 // Week 6 Day 3: Internationalization & Localization
 import { localizationMiddleware } from './middleware/localization';
 
+// Week 6 Day 4: Advanced Analytics Dashboard
+import analyticsRoutes from './routes/analyticsRoutes';
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
@@ -313,6 +316,9 @@ apiRouter.use('/privacy', privacyRoutes);
 // Week 6 Day 1: Metrics & observability routes
 apiRouter.use('/metrics', metricsRoutes);
 
+// Week 6 Day 4: Advanced analytics routes
+apiRouter.use('/analytics', analyticsRoutes);
+
 // Mount API router
 app.use('/api/v1', apiRouter);
 
@@ -395,6 +401,9 @@ logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
     'Internationalization (5 languages: en, es, fr, hi, ar)',
     'Localized API Error Messages',
     'Multi-Currency Support (USD, EUR, GBP, INR, SAR)',
+    'Advanced Analytics Aggregation (/api/v1/analytics)',
+    'Executive Summary & Revenue Reports',
+    'CSV Export (revenue, sales, users)',
   ],
   timestamp: new Date().toISOString(),
 });
