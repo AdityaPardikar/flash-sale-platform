@@ -12,6 +12,7 @@ import ConnectionStatus from './components/ConnectionStatus';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import AdvancedAnalytics from './pages/admin/AdvancedAnalytics';
 import PerformanceDashboard from './pages/admin/PerformanceDashboard';
+import FeatureFlags from './pages/admin/FeatureFlags';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -94,6 +95,7 @@ const App: React.FC = () => {
               <Route path="/bot-demo" element={<BotSimulationDemo />} />
               <Route path="/admin/analytics" element={<AdvancedAnalytics />} />
               <Route path="/admin/performance" element={<PerformanceDashboard />} />
+              <Route path="/admin/feature-flags" element={<FeatureFlags />} />
             </Routes>
           </main>
 

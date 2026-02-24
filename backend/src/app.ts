@@ -65,6 +65,11 @@ import analyticsRoutes from './routes/analyticsRoutes';
 import { performanceProfiler } from './utils/performanceProfiler';
 import { compressionMiddleware, cacheControlMiddleware } from './middleware/compression';
 
+// Week 6 Day 6: Production Hardening & Resilience
+import { gracefulShutdown } from './utils/gracefulShutdown';
+import { circuitBreakerRegistry } from './utils/circuitBreaker';
+import { featureFlagService } from './services/featureFlagService';
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
@@ -381,26 +386,52 @@ httpServer.listen(PORT, async () => {
   performanceProfiler.start();
   console.log('✓ Performance profiler started');
   console.log('✓ WebSocket server initialized');
+
+  // Week 6 Day 6: Register graceful shutdown hooks
+  gracefulShutdown.registerServer(httpServer);
+  gracefulShutdown.registerHook('websocket', () => websocketService.shutdown(), 10);
+  gracefulShutdown.registerHook(
+    'backgroundJobs',
+    () => {
+      backgroundJobRunner.stop();
+    },
+    20
+  );
+  gracefulShutdown.registerHook(
+    'metrics',
+    () => {
+      metricsService.stopCollecting();
+    },
+    30
+  );
+  gracefulShutdown.registerHook(
+    'profiler',
+    () => {
+      performanceProfiler.stop();
+    },
+    30
+  );
+  gracefulShutdown.registerHook(
+    'circuitBreakers',
+    () => {
+      circuitBreakerRegistry.destroyAll();
+    },
+    40
+  );
+  gracefulShutdown.registerHook(
+    'featureFlags',
+    () => {
+      featureFlagService.clearCache();
+    },
+    40
+  );
+  gracefulShutdown.installSignalHandlers();
+  console.log('✓ Graceful shutdown handlers registered');
+  console.log(`✓ Feature flags loaded: ${featureFlagService.getAllFlags().length} flags`);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing server');
-  await websocketService.shutdown();
-  backgroundJobRunner.stop();
-  metricsService.stopCollecting();
-  performanceProfiler.stop();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT signal received: closing server');
-  await websocketService.shutdown();
-  backgroundJobRunner.stop();
-  metricsService.stopCollecting();
-  performanceProfiler.stop();
-  process.exit(0);
-});
+// Graceful shutdown is now managed by GracefulShutdown manager (Week 6 Day 6)
+// Legacy signal handlers removed — gracefulShutdown.installSignalHandlers() handles SIGTERM, SIGINT, SIGUSR2
 
 // Week 6 Integration - Log startup confirmation
 logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
@@ -427,6 +458,11 @@ logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
     'Response Compression (gzip, ETag, conditional requests)',
     'Cache Control Headers (immutable, stale-while-revalidate)',
     'Query Optimizer (DataLoader, memoization, pool monitoring)',
+    'Circuit Breaker (CLOSED/OPEN/HALF_OPEN state machine)',
+    'Graceful Shutdown (signal handling, connection draining)',
+    'Retry Strategy (exponential backoff, jitter, idempotency)',
+    'Feature Flags (boolean, percentage, segment, A/B test)',
+    'Bulkhead Pattern (resource isolation, queue overflow)',
   ],
   timestamp: new Date().toISOString(),
 });

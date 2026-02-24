@@ -72,16 +72,18 @@ class BulkheadPartition {
       return new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => {
           // Remove from queue on timeout
-          const idx = this.queue.findIndex(q => q.resolve === resolve);
+          const idx = this.queue.findIndex((q) => q.resolve === resolve);
           if (idx >= 0) {
             this.queue.splice(idx, 1);
           }
           this.totalTimedOut++;
-          reject(new BulkheadError(
-            `Bulkhead '${this.config.name}' queue timeout after ${this.config.queueTimeoutMs}ms`,
-            this.config.name,
-            'timeout'
-          ));
+          reject(
+            new BulkheadError(
+              `Bulkhead '${this.config.name}' queue timeout after ${this.config.queueTimeoutMs}ms`,
+              this.config.name,
+              'timeout'
+            )
+          );
         }, this.config.queueTimeoutMs);
 
         this.queue.push({ resolve, reject, timer, enqueuedAt: Date.now() });
@@ -165,7 +167,7 @@ class BulkheadManager {
    * Get stats for all partitions
    */
   getAllStats(): BulkheadStats[] {
-    return Array.from(this.partitions.values()).map(p => p.getStats());
+    return Array.from(this.partitions.values()).map((p) => p.getStats());
   }
 
   /**
@@ -194,7 +196,9 @@ interface BulkheadMiddlewareConfig {
 /**
  * Create bulkhead middleware for route protection
  */
-export function bulkheadMiddleware(config: BulkheadMiddlewareConfig = {}): (req: Request, res: Response, next: NextFunction) => void {
+export function bulkheadMiddleware(
+  config: BulkheadMiddlewareConfig = {}
+): (req: Request, res: Response, next: NextFunction) => void {
   const cfg: BulkheadConfig = {
     maxConcurrent: config.maxConcurrent ?? 50,
     maxQueue: config.maxQueue ?? 100,
@@ -211,9 +215,10 @@ export function bulkheadMiddleware(config: BulkheadMiddlewareConfig = {}): (req:
       if (error instanceof BulkheadError) {
         res.status(error.reason === 'timeout' ? 408 : 503).json({
           error: 'Service unavailable',
-          message: error.reason === 'timeout'
-            ? 'Request timed out waiting for available capacity'
-            : 'Server is at capacity, please try again later',
+          message:
+            error.reason === 'timeout'
+              ? 'Request timed out waiting for available capacity'
+              : 'Server is at capacity, please try again later',
           partition: cfg.name,
           retryAfter: 5,
         });

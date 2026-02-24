@@ -64,13 +64,20 @@ class GracefulShutdown {
       });
     });
 
-    this.log(`Server registered for graceful shutdown (${this.activeConnections.size} active connections)`);
+    this.log(
+      `Server registered for graceful shutdown (${this.activeConnections.size} active connections)`
+    );
   }
 
   /**
    * Register a cleanup hook
    */
-  registerHook(name: string, cleanup: CleanupFn, priority: number = 50, timeoutMs: number = 5000): void {
+  registerHook(
+    name: string,
+    cleanup: CleanupFn,
+    priority: number = 50,
+    timeoutMs: number = 5000
+  ): void {
     this.hooks.push({ name, cleanup, priority, timeoutMs });
     this.hooks.sort((a, b) => a.priority - b.priority);
     this.log(`Registered shutdown hook: ${name} (priority: ${priority})`);
@@ -120,7 +127,9 @@ class GracefulShutdown {
 
     // Set force shutdown timer
     const forceTimer = setTimeout(() => {
-      console.error(`[GracefulShutdown] Force shutdown after ${this.config.gracefulTimeoutMs}ms timeout`);
+      console.error(
+        `[GracefulShutdown] Force shutdown after ${this.config.gracefulTimeoutMs}ms timeout`
+      );
       process.exit(1);
     }, this.config.gracefulTimeoutMs);
 

@@ -64,7 +64,10 @@ export class RetryStrategy {
   /**
    * Execute a function with retry logic
    */
-  async execute<T>(fn: () => Promise<T>, operationName: string = 'operation'): Promise<RetryResult<T>> {
+  async execute<T>(
+    fn: () => Promise<T>,
+    operationName: string = 'operation'
+  ): Promise<RetryResult<T>> {
     let lastError: Error | null = null;
     let totalDelayMs = 0;
 
@@ -101,7 +104,7 @@ export class RetryStrategy {
         // Log retry
         console.warn(
           `[RetryStrategy] ${operationName} failed (attempt ${attempt + 1}/${this.config.maxRetries + 1}), ` +
-          `retrying in ${delay}ms: ${error.message}`
+            `retrying in ${delay}ms: ${error.message}`
         );
 
         // Callback
@@ -112,14 +115,17 @@ export class RetryStrategy {
       }
     }
 
-    throw lastError || new Error(`${operationName} failed after ${this.config.maxRetries + 1} attempts`);
+    throw (
+      lastError || new Error(`${operationName} failed after ${this.config.maxRetries + 1} attempts`)
+    );
   }
 
   /**
    * Calculate delay with exponential backoff and jitter
    */
   private calculateDelay(attempt: number): number {
-    const exponentialDelay = this.config.baseDelayMs * Math.pow(this.config.backoffMultiplier, attempt);
+    const exponentialDelay =
+      this.config.baseDelayMs * Math.pow(this.config.backoffMultiplier, attempt);
     const cappedDelay = Math.min(exponentialDelay, this.config.maxDelayMs);
 
     switch (this.config.jitter) {
@@ -141,7 +147,10 @@ export class RetryStrategy {
    */
   private isDefaultRetryable(error: any): boolean {
     // Network errors
-    if (error.code && ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.code)) {
+    if (
+      error.code &&
+      ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN'].includes(error.code)
+    ) {
       return true;
     }
 
@@ -152,7 +161,7 @@ export class RetryStrategy {
       return status === 429 || (status >= 500 && status < 600);
     }
 
-    // Database errors  
+    // Database errors
     if (error.message?.includes('deadlock') || error.message?.includes('lock timeout')) {
       return true;
     }
@@ -166,7 +175,7 @@ export class RetryStrategy {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -298,11 +307,13 @@ export const dbRetry = new RetryStrategy({
   maxDelayMs: 5000,
   jitter: 'full',
   isRetryable: (error: any) => {
-    return error.code === '40P01' || // deadlock
-           error.code === '57P01' || // admin_shutdown
-           error.code === '57P03' || // cannot_connect_now
-           error.message?.includes('connection') ||
-           error.message?.includes('timeout');
+    return (
+      error.code === '40P01' || // deadlock
+      error.code === '57P01' || // admin_shutdown
+      error.code === '57P03' || // cannot_connect_now
+      error.message?.includes('connection') ||
+      error.message?.includes('timeout')
+    );
   },
 });
 
@@ -315,10 +326,12 @@ export const redisRetry = new RetryStrategy({
   maxDelayMs: 2000,
   jitter: 'full',
   isRetryable: (error: any) => {
-    return error.message?.includes('BUSY') ||
-           error.message?.includes('LOADING') ||
-           error.message?.includes('CLUSTERDOWN') ||
-           error.code === 'ECONNREFUSED';
+    return (
+      error.message?.includes('BUSY') ||
+      error.message?.includes('LOADING') ||
+      error.message?.includes('CLUSTERDOWN') ||
+      error.code === 'ECONNREFUSED'
+    );
   },
 });
 

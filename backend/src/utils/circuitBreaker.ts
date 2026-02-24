@@ -145,7 +145,11 @@ export class CircuitBreaker {
 
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
-        reject(new Error(`Circuit breaker '${this.config.name}' call timed out after ${this.config.callTimeoutMs}ms`));
+        reject(
+          new Error(
+            `Circuit breaker '${this.config.name}' call timed out after ${this.config.callTimeoutMs}ms`
+          )
+        );
       }, this.config.callTimeoutMs);
 
       fn()
@@ -329,7 +333,7 @@ class CircuitBreakerRegistry {
    * Get all circuit breaker stats
    */
   getAllStats(): CircuitBreakerStats[] {
-    return Array.from(this.breakers.values()).map(b => b.getStats());
+    return Array.from(this.breakers.values()).map((b) => b.getStats());
   }
 
   /**
@@ -343,14 +347,14 @@ class CircuitBreakerRegistry {
    * Reset all circuit breakers
    */
   resetAll(): void {
-    this.breakers.forEach(b => b.reset());
+    this.breakers.forEach((b) => b.reset());
   }
 
   /**
    * Destroy all circuit breakers
    */
   destroyAll(): void {
-    this.breakers.forEach(b => b.destroy());
+    this.breakers.forEach((b) => b.destroy());
     this.breakers.clear();
   }
 }

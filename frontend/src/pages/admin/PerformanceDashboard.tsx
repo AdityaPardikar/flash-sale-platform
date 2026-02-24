@@ -74,17 +74,23 @@ const formatUptime = (seconds: number): string => {
 
 const vitalRatingColor = (rating: string): string => {
   switch (rating) {
-    case 'good': return 'text-green-400';
-    case 'needs-improvement': return 'text-yellow-400';
-    case 'poor': return 'text-red-400';
-    default: return 'text-gray-400';
+    case 'good':
+      return 'text-green-400';
+    case 'needs-improvement':
+      return 'text-yellow-400';
+    case 'poor':
+      return 'text-red-400';
+    default:
+      return 'text-gray-400';
   }
 };
 
 // ─── Component ────────────────────────────────────────────────
 
 const PerformanceDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'endpoints' | 'memory' | 'vitals' | 'slow'>('endpoints');
+  const [activeTab, setActiveTab] = useState<'endpoints' | 'memory' | 'vitals' | 'slow'>(
+    'endpoints'
+  );
   const [vitalsMetrics, setVitalsMetrics] = useState<WebVitalMetric[]>([]);
 
   // Refresh Web Vitals
@@ -158,18 +164,20 @@ const PerformanceDashboard: React.FC = () => {
               desc: 'Time to First Byte',
             },
           ].map((kpi) => (
-            <div
-              key={kpi.label}
-              className="bg-gray-800 rounded-xl p-4 border border-gray-700"
-            >
+            <div key={kpi.label} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-400 text-xs uppercase tracking-wide">{kpi.label}</span>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  kpi.rating === 'good' ? 'bg-green-900/50 text-green-400' :
-                  kpi.rating === 'needs-improvement' ? 'bg-yellow-900/50 text-yellow-400' :
-                  kpi.rating === 'poor' ? 'bg-red-900/50 text-red-400' :
-                  'bg-gray-700 text-gray-400'
-                }`}>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    kpi.rating === 'good'
+                      ? 'bg-green-900/50 text-green-400'
+                      : kpi.rating === 'needs-improvement'
+                        ? 'bg-yellow-900/50 text-yellow-400'
+                        : kpi.rating === 'poor'
+                          ? 'bg-red-900/50 text-red-400'
+                          : 'bg-gray-700 text-gray-400'
+                  }`}
+                >
                   {kpi.rating}
                 </span>
               </div>
@@ -188,9 +196,7 @@ const PerformanceDashboard: React.FC = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
               }`}
             >
               {tab.label}
@@ -223,11 +229,15 @@ const PerformanceDashboard: React.FC = () => {
                         <span className="text-gray-400 text-sm">{metric.name}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          metric.rating === 'good' ? 'bg-green-900/50 text-green-400' :
-                          metric.rating === 'needs-improvement' ? 'bg-yellow-900/50 text-yellow-400' :
-                          'bg-red-900/50 text-red-400'
-                        }`}>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            metric.rating === 'good'
+                              ? 'bg-green-900/50 text-green-400'
+                              : metric.rating === 'needs-improvement'
+                                ? 'bg-yellow-900/50 text-yellow-400'
+                                : 'bg-red-900/50 text-red-400'
+                          }`}
+                        >
                           {metric.rating}
                         </span>
                         <span className="text-gray-500 text-xs">
@@ -245,7 +255,8 @@ const PerformanceDashboard: React.FC = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Endpoint Performance</h3>
               <p className="text-gray-400 text-sm mb-4">
-                Endpoint timing data is collected server-side. Connect to the performance API for live data.
+                Endpoint timing data is collected server-side. Connect to the performance API for
+                live data.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -262,7 +273,8 @@ const PerformanceDashboard: React.FC = () => {
                   <tbody>
                     <tr className="text-gray-500 border-b border-gray-700/50">
                       <td className="py-3 pr-4" colSpan={6}>
-                        Performance API integration pending — data collected by backend PerformanceProfiler
+                        Performance API integration pending — data collected by backend
+                        PerformanceProfiler
                       </td>
                     </tr>
                   </tbody>
@@ -307,21 +319,29 @@ const PerformanceDashboard: React.FC = () => {
                 <div className="bg-gray-900 rounded-lg p-4">
                   <h4 className="text-sm text-gray-400 mb-2">Navigation Timing</h4>
                   {(() => {
-                    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+                    const nav = performance.getEntriesByType('navigation')[0] as
+                      | PerformanceNavigationTiming
+                      | undefined;
                     if (!nav) return <p className="text-gray-500 text-sm">No navigation data</p>;
                     return (
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-400 text-sm">DOM Interactive</span>
-                          <span className="font-mono text-green-400">{formatMs(nav.domInteractive)}</span>
+                          <span className="font-mono text-green-400">
+                            {formatMs(nav.domInteractive)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400 text-sm">DOM Complete</span>
-                          <span className="font-mono text-blue-400">{formatMs(nav.domComplete)}</span>
+                          <span className="font-mono text-blue-400">
+                            {formatMs(nav.domComplete)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400 text-sm">Load Event</span>
-                          <span className="font-mono text-purple-400">{formatMs(nav.loadEventEnd)}</span>
+                          <span className="font-mono text-purple-400">
+                            {formatMs(nav.loadEventEnd)}
+                          </span>
                         </div>
                       </div>
                     );
@@ -339,8 +359,8 @@ const PerformanceDashboard: React.FC = () => {
               </p>
               <div className="bg-gray-900 rounded-lg p-4">
                 <p className="text-gray-500 text-sm">
-                  Connect to the performance API for real-time slow operation alerts.
-                  Slow operations are also logged server-side with full metadata.
+                  Connect to the performance API for real-time slow operation alerts. Slow
+                  operations are also logged server-side with full metadata.
                 </p>
               </div>
             </div>
