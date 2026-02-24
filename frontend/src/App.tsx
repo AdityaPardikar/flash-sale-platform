@@ -11,6 +11,7 @@ import { WebSocketProvider } from './contexts/WebSocketContext';
 import ConnectionStatus from './components/ConnectionStatus';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import AdvancedAnalytics from './pages/admin/AdvancedAnalytics';
+import PerformanceDashboard from './pages/admin/PerformanceDashboard';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -92,6 +93,7 @@ const App: React.FC = () => {
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/bot-demo" element={<BotSimulationDemo />} />
               <Route path="/admin/analytics" element={<AdvancedAnalytics />} />
+              <Route path="/admin/performance" element={<PerformanceDashboard />} />
             </Routes>
           </main>
 
