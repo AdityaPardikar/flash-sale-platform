@@ -61,6 +61,10 @@ import { localizationMiddleware } from './middleware/localization';
 // Week 6 Day 4: Advanced Analytics Dashboard
 import analyticsRoutes from './routes/analyticsRoutes';
 
+// Week 6 Day 5: Performance Profiling & Optimization
+import { performanceProfiler } from './utils/performanceProfiler';
+import { compressionMiddleware, cacheControlMiddleware } from './middleware/compression';
+
 const app: Express = express();
 
 // Week 4 Day 7: Security Headers (applied before other middleware)
@@ -71,6 +75,15 @@ app.use(correlationIdMiddleware);
 
 // Week 6 Day 3: Localization (detect locale early for error messages)
 app.use(localizationMiddleware);
+
+// Week 6 Day 5: Performance profiling (response timing)
+app.use(performanceProfiler.middleware());
+
+// Week 6 Day 5: Response compression
+app.use(compressionMiddleware());
+
+// Week 6 Day 5: Cache control headers
+app.use(cacheControlMiddleware());
 
 // Week 6 Day 1: Metrics collection middleware
 app.use(metricsMiddleware);
@@ -363,6 +376,10 @@ httpServer.listen(PORT, async () => {
   // Week 6 Day 1: Start metrics collection (event loop lag, runtime metrics)
   metricsService.startCollecting();
   console.log('✓ Metrics collection started');
+
+  // Week 6 Day 5: Start performance profiler
+  performanceProfiler.start();
+  console.log('✓ Performance profiler started');
   console.log('✓ WebSocket server initialized');
 });
 
@@ -372,6 +389,7 @@ process.on('SIGTERM', async () => {
   await websocketService.shutdown();
   backgroundJobRunner.stop();
   metricsService.stopCollecting();
+  performanceProfiler.stop();
   process.exit(0);
 });
 
@@ -380,6 +398,7 @@ process.on('SIGINT', async () => {
   await websocketService.shutdown();
   backgroundJobRunner.stop();
   metricsService.stopCollecting();
+  performanceProfiler.stop();
   process.exit(0);
 });
 
@@ -404,6 +423,10 @@ logger.info('🚀 Flash Sale Platform - Week 6 Integration Active!', {
     'Advanced Analytics Aggregation (/api/v1/analytics)',
     'Executive Summary & Revenue Reports',
     'CSV Export (revenue, sales, users)',
+    'Performance Profiler (event loop, memory, endpoint timing)',
+    'Response Compression (gzip, ETag, conditional requests)',
+    'Cache Control Headers (immutable, stale-while-revalidate)',
+    'Query Optimizer (DataLoader, memoization, pool monitoring)',
   ],
   timestamp: new Date().toISOString(),
 });
