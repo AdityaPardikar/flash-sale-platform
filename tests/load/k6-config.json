@@ -1,0 +1,126 @@
+{
+  "projectName": "HighLoad Flash Sale Platform",
+  "description": "Shared k6 configuration for load, stress, and benchmark tests",
+
+  "baseConfig": {
+    "baseUrl": "http://localhost:3000",
+    "apiPrefix": "/api/v1"
+  },
+
+  "environments": {
+    "local": {
+      "baseUrl": "http://localhost:3000",
+      "maxVUs": 100,
+      "duration": "2m"
+    },
+    "staging": {
+      "baseUrl": "https://staging-api.flashsale.io",
+      "maxVUs": 500,
+      "duration": "5m"
+    },
+    "production": {
+      "baseUrl": "https://api.flashsale.io",
+      "maxVUs": 2000,
+      "duration": "10m"
+    }
+  },
+
+  "thresholds": {
+    "slo": {
+      "http_req_duration_p95": 500,
+      "http_req_duration_p99": 1000,
+      "http_req_failed_rate": 0.01,
+      "error_rate": 0.05
+    },
+    "strict": {
+      "http_req_duration_p95": 200,
+      "http_req_duration_p99": 500,
+      "http_req_failed_rate": 0.001,
+      "error_rate": 0.01
+    }
+  },
+
+  "stages": {
+    "warmup": { "duration": "30s", "target": 10 },
+    "rampLight": [
+      { "duration": "30s", "target": 50 },
+      { "duration": "1m", "target": 50 }
+    ],
+    "rampMedium": [
+      { "duration": "30s", "target": 50 },
+      { "duration": "1m", "target": 200 },
+      { "duration": "2m", "target": 200 },
+      { "duration": "30s", "target": 0 }
+    ],
+    "rampHeavy": [
+      { "duration": "30s", "target": 50 },
+      { "duration": "1m", "target": 200 },
+      { "duration": "1m", "target": 500 },
+      { "duration": "2m", "target": 1000 },
+      { "duration": "1m", "target": 500 },
+      { "duration": "30s", "target": 0 }
+    ],
+    "spike": [
+      { "duration": "10s", "target": 50 },
+      { "duration": "5s", "target": 2000 },
+      { "duration": "30s", "target": 2000 },
+      { "duration": "10s", "target": 50 }
+    ],
+    "soak": [
+      { "duration": "2m", "target": 200 },
+      { "duration": "20m", "target": 200 },
+      { "duration": "2m", "target": 0 }
+    ]
+  },
+
+  "endpoints": {
+    "public": {
+      "products": { "method": "GET", "path": "/products", "weight": 25 },
+      "productSearch": {
+        "method": "GET",
+        "path": "/products/search?q=phone",
+        "weight": 10
+      },
+      "categoryStats": {
+        "method": "GET",
+        "path": "/products/categories/stats",
+        "weight": 5
+      },
+      "flashSales": { "method": "GET", "path": "/flash-sales", "weight": 20 },
+      "activeSales": {
+        "method": "GET",
+        "path": "/flash-sales/active",
+        "weight": 20
+      },
+      "upcomingSales": {
+        "method": "GET",
+        "path": "/flash-sales/upcoming",
+        "weight": 10
+      },
+      "health": { "method": "GET", "path": "/health", "weight": 5 },
+      "healthLive": { "method": "GET", "path": "/health/live", "weight": 5 }
+    },
+    "authenticated": {
+      "queueJoin": { "method": "POST", "path": "/queue/join/{saleId}" },
+      "queueLeave": { "method": "DELETE", "path": "/queue/leave/{saleId}" },
+      "queuePosition": { "method": "GET", "path": "/queue/position/{saleId}" },
+      "checkout": { "method": "POST", "path": "/orders/checkout" },
+      "myQueues": { "method": "GET", "path": "/queue/my-queues" },
+      "myOrders": { "method": "GET", "path": "/orders" }
+    }
+  },
+
+  "testData": {
+    "userPoolSize": 10000,
+    "emailPattern": "loadtest-user-{index}@perf.test",
+    "defaultPassword": "LoadTest2026!",
+    "saleId": "perf-test-sale-001"
+  },
+
+  "reporting": {
+    "outputDir": "reports",
+    "jsonSummary": "reports/k6-summary.json",
+    "htmlReport": "reports/k6-report.html",
+    "csvTimeline": "reports/k6-timeline.csv"
+  }
+}
