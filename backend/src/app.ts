@@ -61,6 +61,9 @@ import { localizationMiddleware } from './middleware/localization';
 // Week 6 Day 4: Advanced Analytics Dashboard
 import analyticsRoutes from './routes/analyticsRoutes';
 
+// Week 7 Day 6: Deployment Dashboard & Release Management
+import deploymentRoutes from './routes/deploymentRoutes';
+
 // Week 6 Day 5: Performance Profiling & Optimization
 import { performanceProfiler } from './utils/performanceProfiler';
 import { compressionMiddleware, cacheControlMiddleware } from './middleware/compression';
@@ -111,7 +114,7 @@ app.use(
   cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     credentials: true,
-  })
+  }),
 );
 
 // Week 4 Day 7: Input sanitization (clean inputs early)
@@ -191,7 +194,7 @@ if (enableDebugRoutes) {
       } catch (error) {
         next(error);
       }
-    }
+    },
   );
 
   debugRouter.post(
@@ -208,7 +211,7 @@ if (enableDebugRoutes) {
       } catch (error) {
         next(error);
       }
-    }
+    },
   );
 
   debugRouter.post('/queue/join', async (req: Request, res: Response, next: NextFunction) => {
@@ -249,7 +252,7 @@ if (enableDebugRoutes) {
       } catch (error) {
         next(error);
       }
-    }
+    },
   );
 
   debugRouter.get(
@@ -262,7 +265,7 @@ if (enableDebugRoutes) {
       } catch (error) {
         next(error);
       }
-    }
+    },
   );
 
   apiRouter.use('/debug', debugRouter);
@@ -343,6 +346,9 @@ apiRouter.use('/metrics', metricsRoutes);
 // Week 6 Day 4: Advanced analytics routes
 apiRouter.use('/analytics', analyticsRoutes);
 
+// Week 7 Day 6: Deployment dashboard & release management
+apiRouter.use('/deployments', deploymentRoutes);
+
 // Mount API router
 app.use('/api/v1', apiRouter);
 
@@ -401,35 +407,35 @@ httpServer.listen(PORT, async () => {
     () => {
       backgroundJobRunner.stop();
     },
-    20
+    20,
   );
   gracefulShutdown.registerHook(
     'metrics',
     () => {
       metricsService.stopCollecting();
     },
-    30
+    30,
   );
   gracefulShutdown.registerHook(
     'profiler',
     () => {
       performanceProfiler.stop();
     },
-    30
+    30,
   );
   gracefulShutdown.registerHook(
     'circuitBreakers',
     () => {
       circuitBreakerRegistry.destroyAll();
     },
-    40
+    40,
   );
   gracefulShutdown.registerHook(
     'featureFlags',
     () => {
       featureFlagService.clearCache();
     },
-    40
+    40,
   );
   gracefulShutdown.installSignalHandlers();
   console.log('✓ Graceful shutdown handlers registered');
