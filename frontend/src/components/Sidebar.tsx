@@ -17,7 +17,7 @@ const Sidebar: React.FC = () => {
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
       }
     } catch (error) {
@@ -39,15 +39,12 @@ const Sidebar: React.FC = () => {
       items: [
         { name: 'Overview', path: '/admin/dashboard', icon: '📊' },
         { name: 'Analytics', path: '/admin/analytics', icon: '📈' },
+        { name: 'Advanced Analytics', path: '/admin/advanced-analytics', icon: '🔬' },
       ],
     },
     {
       section: 'Flash Sales',
-      items: [
-        { name: 'All Sales', path: '/admin/sales', icon: '⚡' },
-        { name: 'Create Sale', path: '/admin/sales/create', icon: '➕' },
-        { name: 'Live Sales', path: '/admin/sales/live', icon: '🔴' },
-      ],
+      items: [{ name: 'All Sales', path: '/admin/sales', icon: '⚡' }],
     },
     {
       section: 'Management',
@@ -60,9 +57,12 @@ const Sidebar: React.FC = () => {
     {
       section: 'System',
       items: [
-        { name: 'System Logs', path: '/admin/logs', icon: '📝' },
+        { name: 'System Health', path: '/admin/system-health', icon: '💚' },
         { name: 'Performance', path: '/admin/performance', icon: '⚙️' },
-        { name: 'Settings', path: '/admin/settings', icon: '🔧' },
+        { name: 'Feature Flags', path: '/admin/feature-flags', icon: '🚩' },
+        { name: 'Deployments', path: '/admin/deployments', icon: '🚀' },
+        { name: 'Audit Logs', path: '/admin/logs', icon: '📝' },
+        { name: 'Alerts', path: '/admin/alerts', icon: '🔔' },
       ],
     },
   ];
