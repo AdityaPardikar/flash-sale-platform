@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ServiceStatus, HealthSummary, MetricsCard } from '../../components/admin/ServiceStatus';
-import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface SystemHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -37,7 +37,7 @@ interface Service {
   name: string;
   status: 'ok' | 'degraded' | 'unhealthy';
   latencyMs: number;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 interface ResponseMetrics {
@@ -62,30 +62,37 @@ export const SystemHealth: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const toast = useToast();
 
   const fetchHealthData = useCallback(async () => {
     try {
       setError(null);
-      
+
       // Fetch all health data in parallel - use relative paths from API base
       const [healthRes, servicesRes, metricsRes] = await Promise.all([
-        fetch('/api/health').then(r => r.json()).catch(() => null),
-        fetch('/api/health/services').then(r => r.json()).catch(() => null),
-        fetch('/api/health/metrics').then(r => r.json()).catch(() => null),
+        fetch('/api/health')
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch('/api/health/services')
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch('/api/health/metrics')
+          .then((r) => r.json())
+          .catch(() => null),
       ]);
 
       if (healthRes) setHealth(healthRes);
       if (servicesRes?.services) setServices(servicesRes.services);
       if (metricsRes) setMetrics(metricsRes);
-      
+
       setLastUpdated(new Date());
     } catch (err) {
       setError('Failed to fetch health data');
-      console.error('Health fetch error:', err);
+      toast.error('Failed to fetch health data');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchHealthData();
@@ -118,11 +125,9 @@ export const SystemHealth: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">System Health</h1>
-          <p className="text-gray-600">
-            Monitor system status and service health
-          </p>
+          <p className="text-gray-600">Monitor system status and service health</p>
         </div>
-        
+
         <div className="flex items-center gap-4 mt-4 md:mt-0">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -133,7 +138,7 @@ export const SystemHealth: React.FC = () => {
             />
             Auto-refresh
           </label>
-          
+
           <button
             onClick={fetchHealthData}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -150,11 +155,7 @@ export const SystemHealth: React.FC = () => {
       )}
 
       {health && (
-        <HealthSummary
-          status={health.status}
-          uptime={health.uptime}
-          memory={health.memory}
-        />
+        <HealthSummary status={health.status} uptime={health.uptime} memory={health.memory} />
       )}
 
       <div className="mb-6">
@@ -173,7 +174,7 @@ export const SystemHealth: React.FC = () => {
               { label: 'Average', value: metrics.responseTime.avg, unit: 'ms' },
             ]}
           />
-          
+
           <MetricsCard
             title="Memory (MB)"
             metrics={[
@@ -182,7 +183,7 @@ export const SystemHealth: React.FC = () => {
               { label: 'RSS', value: metrics.memory.rss },
             ]}
           />
-          
+
           {health && (
             <MetricsCard
               title="Database"
@@ -202,7 +203,9 @@ export const SystemHealth: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <span className="text-gray-600 text-sm">Status</span>
-              <div className={`font-medium ${health.redis.status === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+              <div
+                className={`font-medium ${health.redis.status === 'ok' ? 'text-green-600' : 'text-red-600'}`}
+              >
                 {health.redis.status}
               </div>
             </div>

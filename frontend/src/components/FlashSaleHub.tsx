@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { API } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 
 interface FlashSale {
   id: string;
@@ -16,7 +18,7 @@ interface FlashSale {
 }
 
 interface FlashSaleHubProps {
-  user: any;
+  user: { id: string; email: string; username: string } | null;
 }
 
 // Mock data for demo - will connect to real API
@@ -141,15 +143,21 @@ const CountdownTimer: React.FC<{ endTime: Date; startTime: Date; status: string 
       <p className="text-xs text-gray-400 mb-1">{label}</p>
       <div className="flex justify-center space-x-1">
         <div className="bg-black/50 rounded px-2 py-1">
-          <span className="text-white font-mono text-lg">{String(timeLeft.hours).padStart(2, '0')}</span>
+          <span className="text-white font-mono text-lg">
+            {String(timeLeft.hours).padStart(2, '0')}
+          </span>
         </div>
         <span className="text-white text-lg">:</span>
         <div className="bg-black/50 rounded px-2 py-1">
-          <span className="text-white font-mono text-lg">{String(timeLeft.minutes).padStart(2, '0')}</span>
+          <span className="text-white font-mono text-lg">
+            {String(timeLeft.minutes).padStart(2, '0')}
+          </span>
         </div>
         <span className="text-white text-lg">:</span>
         <div className="bg-black/50 rounded px-2 py-1">
-          <span className="text-white font-mono text-lg">{String(timeLeft.seconds).padStart(2, '0')}</span>
+          <span className="text-white font-mono text-lg">
+            {String(timeLeft.seconds).padStart(2, '0')}
+          </span>
         </div>
       </div>
     </div>
@@ -172,8 +180,8 @@ const InventoryBar: React.FC<{ total: number; remaining: number }> = ({ total, r
             percentage < 20
               ? 'bg-gradient-to-r from-red-500 to-orange-500'
               : percentage < 50
-              ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
-              : 'bg-gradient-to-r from-green-500 to-emerald-500'
+                ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                : 'bg-gradient-to-r from-green-500 to-emerald-500'
           }`}
           style={{ width: `${percentage}%` }}
         />
@@ -210,21 +218,27 @@ const FlashSaleCard: React.FC<{ sale: FlashSale; onJoinQueue: (id: string) => vo
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        
+
         {/* Status Badge */}
-        <div className={`absolute top-3 left-3 ${statusColors[sale.status]} text-white text-xs font-bold px-3 py-1 rounded-full`}>
+        <div
+          className={`absolute top-3 left-3 ${statusColors[sale.status]} text-white text-xs font-bold px-3 py-1 rounded-full`}
+        >
           {statusLabels[sale.status]}
         </div>
-        
+
         {/* Discount Badge */}
         <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-500 to-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
           -{sale.discount}%
         </div>
-        
+
         {/* Timer */}
         {(sale.status === 'active' || sale.status === 'upcoming') && (
           <div className="absolute bottom-3 left-0 right-0">
-            <CountdownTimer endTime={sale.endTime} startTime={sale.startTime} status={sale.status} />
+            <CountdownTimer
+              endTime={sale.endTime}
+              startTime={sale.startTime}
+              status={sale.status}
+            />
           </div>
         )}
       </div>
@@ -238,7 +252,9 @@ const FlashSaleCard: React.FC<{ sale: FlashSale; onJoinQueue: (id: string) => vo
         <div className="flex items-center space-x-3 mb-4">
           <span className="text-3xl font-bold text-white">${sale.salePrice}</span>
           <span className="text-lg text-gray-500 line-through">${sale.originalPrice}</span>
-          <span className="text-green-400 text-sm font-semibold">Save ${sale.originalPrice - sale.salePrice}</span>
+          <span className="text-green-400 text-sm font-semibold">
+            Save ${sale.originalPrice - sale.salePrice}
+          </span>
         </div>
 
         {/* Inventory */}
@@ -254,17 +270,17 @@ const FlashSaleCard: React.FC<{ sale: FlashSale; onJoinQueue: (id: string) => vo
             sale.status === 'active'
               ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 transform hover:scale-[1.02] shadow-lg shadow-purple-500/25'
               : sale.status === 'upcoming'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
-              : 'bg-gray-600 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
+                : 'bg-gray-600 cursor-not-allowed'
           }`}
         >
           {sale.status === 'active'
             ? '⚡ Buy Now'
             : sale.status === 'upcoming'
-            ? '🔔 Notify Me'
-            : sale.status === 'sold_out'
-            ? 'Sold Out'
-            : 'Sale Ended'}
+              ? '🔔 Notify Me'
+              : sale.status === 'sold_out'
+                ? 'Sold Out'
+                : 'Sale Ended'}
         </button>
       </div>
     </div>
@@ -275,20 +291,47 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
   const [sales, setSales] = useState<FlashSale[]>(mockFlashSales);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'upcoming'>('all');
   const [joinedQueue, setJoinedQueue] = useState<string | null>(null);
+  const toast = useToast();
+
+  const fetchSales = useCallback(async () => {
+    try {
+      const response = await API.get<FlashSale[]>('/flash-sales');
+      if (Array.isArray(response) && response.length > 0) {
+        setSales(
+          response.map((s) => ({
+            ...s,
+            startTime: new Date(s.startTime),
+            endTime: new Date(s.endTime),
+          })),
+        );
+      }
+    } catch {
+      // Fall back to mock data silently for demo
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSales();
+  }, [fetchSales]);
 
   const filteredSales = sales.filter((sale) => {
     if (activeFilter === 'all') return true;
     return sale.status === activeFilter;
   });
 
-  const handleJoinQueue = (saleId: string) => {
+  const handleJoinQueue = async (saleId: string) => {
     if (!user) {
-      alert('Please login to join the queue!');
+      toast.warning('Please login to join the queue!');
       return;
     }
-    setJoinedQueue(saleId);
-    // In production, this would call the API
-    console.log(`Joining queue for sale: ${saleId}`);
+    try {
+      await API.post(`/queue/join`, { saleId });
+      setJoinedQueue(saleId);
+      toast.success('Successfully joined the queue!');
+    } catch {
+      // Show modal anyway for demo purposes
+      setJoinedQueue(saleId);
+    }
   };
 
   const activeSalesCount = sales.filter((s) => s.status === 'active').length;
@@ -300,9 +343,11 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
       <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/50 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-yellow-400 mb-2">🎯 For Recruiters & Hiring Managers</h2>
+            <h2 className="text-xl font-bold text-yellow-400 mb-2">
+              🎯 For Recruiters & Hiring Managers
+            </h2>
             <p className="text-gray-300">
-              See this platform handle <strong>10,000+ concurrent users</strong> in real-time! 
+              See this platform handle <strong>10,000+ concurrent users</strong> in real-time!
               Experience our queue system under extreme load.
             </p>
           </div>
@@ -323,10 +368,14 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
           </span>
         </div>
         <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-          Lightning <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Flash Deals</span>
+          Lightning{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+            Flash Deals
+          </span>
         </h1>
         <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-          Exclusive limited-time offers at unbeatable prices. Join the queue fast - once they're gone, they're gone!
+          Exclusive limited-time offers at unbeatable prices. Join the queue fast - once
+          they&apos;re gone, they&apos;re gone!
         </p>
       </div>
 
@@ -363,7 +412,11 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              {filter === 'all' ? 'All Deals' : filter === 'active' ? '🔥 Live Now' : '⏰ Coming Soon'}
+              {filter === 'all'
+                ? 'All Deals'
+                : filter === 'active'
+                  ? '🔥 Live Now'
+                  : '⏰ Coming Soon'}
             </button>
           ))}
         </div>
@@ -382,7 +435,7 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
           <div className="bg-gradient-to-br from-gray-900 to-purple-900 rounded-2xl p-8 max-w-md mx-4 border border-purple-500/30">
             <div className="text-center">
               <div className="text-6xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-white mb-2">You're in the Queue!</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">You&apos;re in the Queue!</h2>
               <p className="text-gray-300 mb-6">
                 Your position: <span className="text-green-400 font-bold">#127</span>
               </p>
@@ -391,7 +444,8 @@ const FlashSaleHub: React.FC<FlashSaleHubProps> = ({ user }) => {
                 <p className="text-3xl font-bold text-white">~3 minutes</p>
               </div>
               <p className="text-gray-400 text-sm mb-6">
-                Stay on this page! You'll be automatically redirected to checkout when it's your turn.
+                Stay on this page! You&apos;ll be automatically redirected to checkout when
+                it&apos;s your turn.
               </p>
               <button
                 onClick={() => setJoinedQueue(null)}

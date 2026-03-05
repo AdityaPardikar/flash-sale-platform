@@ -9,6 +9,7 @@ import { BarChart, BarChartDataPoint } from '../../components/admin/charts/BarCh
 import { PieChart, PieChartDataPoint } from '../../components/admin/charts/PieChart';
 import { FunnelChart, FunnelChartDataPoint } from '../../components/admin/charts/FunnelChart';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AnalyticsPeriod {
   label: string;
@@ -28,7 +29,7 @@ interface SalesAnalyticsData {
   purchases: number;
   revenue: number;
   conversion_rate: number;
-  aggregations?: any[];
+  aggregations?: Array<{ date: string; count: number; revenue: number }>;
 }
 
 interface UserAnalyticsData {
@@ -37,8 +38,8 @@ interface UserAnalyticsData {
   avg_pages_per_user: number;
   queue_join_rate: number;
   purchase_rate: number;
-  device_breakdown?: any;
-  country_breakdown?: any;
+  device_breakdown?: Record<string, number>;
+  country_breakdown?: Record<string, number>;
 }
 
 interface QueueAnalyticsData {
@@ -83,6 +84,7 @@ export const AnalyticsPage: React.FC = () => {
   const [selectedSaleId, setSelectedSaleId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   // Analytics data states
   const [salesData, setSalesData] = useState<SalesAnalyticsData | null>(null);
@@ -140,8 +142,9 @@ export const AnalyticsPage: React.FC = () => {
       setFunnelData(funnel as FunnelData);
       setRevenueData(revenue as RevenueData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch analytics');
-      console.error('Analytics fetch error:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to fetch analytics';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -173,7 +176,7 @@ export const AnalyticsPage: React.FC = () => {
     })) || [];
 
   const deviceDistributionData: PieChartDataPoint[] = userData?.device_breakdown
-    ? Object.entries(userData.device_breakdown).map(([device, count]: [string, any]) => ({
+    ? Object.entries(userData.device_breakdown).map(([device, count]) => ({
         label: device,
         value: count,
       }))

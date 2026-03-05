@@ -15,41 +15,15 @@ import { webVitals, WebVitalMetric } from '../../utils/webVitals';
 
 // ─── Types ────────────────────────────────────────────────────
 
-interface EndpointStat {
-  path: string;
-  method: string;
-  count: number;
-  avgDuration: number;
-  minDuration: number;
-  maxDuration: number;
-  p95Duration: number;
-  p99Duration: number;
-  errorCount: number;
+// Chrome-specific performance.memory interface
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
 }
 
-interface PerformanceData {
-  uptime: number;
-  memorySnapshots: Array<{
-    rss: number;
-    heapTotal: number;
-    heapUsed: number;
-    timestamp: string;
-  }>;
-  slowOperations: Array<{
-    operation: string;
-    durationMs: number;
-    timestamp: string;
-  }>;
-  endpointStats: EndpointStat[];
-  avgEventLoopLag: number;
-}
-
-interface CacheStats {
-  size: number;
-  maxSize: number;
-  hits: number;
-  misses: number;
-  hitRate: string;
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -63,13 +37,6 @@ const formatMs = (ms: number): string => {
 const formatBytes = (bytes: number): string => {
   const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(1)}MB`;
-};
-
-const formatUptime = (seconds: number): string => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  return `${h}h ${m}m ${s}s`;
 };
 
 const vitalRatingColor = (rating: string): string => {
@@ -89,7 +56,7 @@ const vitalRatingColor = (rating: string): string => {
 
 const PerformanceDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'endpoints' | 'memory' | 'vitals' | 'slow'>(
-    'endpoints'
+    'endpoints',
   );
   const [vitalsMetrics, setVitalsMetrics] = useState<WebVitalMetric[]>([]);
 
@@ -289,32 +256,35 @@ const PerformanceDashboard: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-900 rounded-lg p-4">
                   <h4 className="text-sm text-gray-400 mb-2">Browser Memory</h4>
-                  {(performance as any).memory ? (
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400 text-sm">Used JS Heap</span>
-                        <span className="font-mono text-green-400">
-                          {formatBytes((performance as any).memory.usedJSHeapSize)}
-                        </span>
+                  {(() => {
+                    const perfWithMemory = performance as PerformanceWithMemory;
+                    return perfWithMemory.memory ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 text-sm">Used JS Heap</span>
+                          <span className="font-mono text-green-400">
+                            {formatBytes(perfWithMemory.memory.usedJSHeapSize)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 text-sm">Total JS Heap</span>
+                          <span className="font-mono text-blue-400">
+                            {formatBytes(perfWithMemory.memory.totalJSHeapSize)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 text-sm">Heap Limit</span>
+                          <span className="font-mono text-gray-400">
+                            {formatBytes(perfWithMemory.memory.jsHeapSizeLimit)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400 text-sm">Total JS Heap</span>
-                        <span className="font-mono text-blue-400">
-                          {formatBytes((performance as any).memory.totalJSHeapSize)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400 text-sm">Heap Limit</span>
-                        <span className="font-mono text-gray-400">
-                          {formatBytes((performance as any).memory.jsHeapSizeLimit)}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">
-                      performance.memory API not available in this browser
-                    </p>
-                  )}
+                    ) : (
+                      <p className="text-gray-500 text-sm">
+                        performance.memory API not available in this browser
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="bg-gray-900 rounded-lg p-4">
                   <h4 className="text-sm text-gray-400 mb-2">Navigation Timing</h4>

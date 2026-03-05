@@ -9,7 +9,9 @@
  * - Visual indicators for flag types
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -103,13 +105,48 @@ const FeatureFlags: React.FC = () => {
   const [flags, setFlags] = useState<FeatureFlag[]>(DEFAULT_FLAGS);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
-  const toggleFlag = (name: string) => {
-    setFlags((prev) => prev.map((f) => (f.name === name ? { ...f, enabled: !f.enabled } : f)));
+  const fetchFlags = useCallback(async () => {
+    try {
+      const response = await API.get<FeatureFlag[]>('/admin/feature-flags');
+      if (Array.isArray(response) && response.length > 0) {
+        setFlags(response);
+      }
+    } catch {
+      // Fall back to default flags — API may not be deployed yet
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFlags();
+  }, [fetchFlags]);
+
+  const toggleFlag = async (name: string) => {
+    const flag = flags.find((f) => f.name === name);
+    if (!flag) return;
+    const updated = { ...flag, enabled: !flag.enabled };
+    setFlags((prev) => prev.map((f) => (f.name === name ? updated : f)));
+    try {
+      await API.patch(`/admin/feature-flags/${name}`, { enabled: updated.enabled });
+      toast.success(`${name} ${updated.enabled ? 'enabled' : 'disabled'}`);
+    } catch {
+      // Revert on failure
+      setFlags((prev) => prev.map((f) => (f.name === name ? flag : f)));
+      toast.error(`Failed to update ${name}`);
+    }
   };
 
-  const updatePercentage = (name: string, percentage: number) => {
+  const updatePercentage = async (name: string, percentage: number) => {
     setFlags((prev) => prev.map((f) => (f.name === name ? { ...f, percentage } : f)));
+    try {
+      await API.patch(`/admin/feature-flags/${name}`, { percentage });
+    } catch {
+      toast.error(`Failed to update rollout percentage for ${name}`);
+    }
   };
 
   const filteredFlags = flags.filter((f) => {
@@ -121,6 +158,22 @@ const FeatureFlags: React.FC = () => {
   });
 
   const enabledCount = flags.filter((f) => f.enabled).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white p-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-gray-800 rounded w-48"></div>
+            <div className="h-6 bg-gray-800 rounded w-32"></div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 bg-gray-800 rounded-xl"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 /**
  * Audit log entry
@@ -12,7 +13,7 @@ interface AuditLogEntry {
   entityId?: string;
   ipAddress?: string;
   userAgent?: string;
-  changes?: Record<string, any>;
+  changes?: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -49,17 +50,15 @@ const AuditLogTable: React.FC<AuditLogTableProps> = ({ logs, loading, onViewDeta
   }
 
   if (logs.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        No audit logs found
-      </div>
-    );
+    return <div className="text-center py-8 text-gray-500">No audit logs found</div>;
   }
 
   const getActionColor = (action: string): string => {
-    if (action.includes('CREATED') || action.includes('LOGIN')) return 'text-green-600 bg-green-100';
+    if (action.includes('CREATED') || action.includes('LOGIN'))
+      return 'text-green-600 bg-green-100';
     if (action.includes('DELETED') || action.includes('FAILED')) return 'text-red-600 bg-red-100';
-    if (action.includes('UPDATED') || action.includes('CHANGED')) return 'text-yellow-600 bg-yellow-100';
+    if (action.includes('UPDATED') || action.includes('CHANGED'))
+      return 'text-yellow-600 bg-yellow-100';
     return 'text-blue-600 bg-blue-100';
   };
 
@@ -95,11 +94,11 @@ const AuditLogTable: React.FC<AuditLogTableProps> = ({ logs, loading, onViewDeta
         <tbody className="bg-white divide-y divide-gray-200">
           {logs.map((log) => (
             <tr key={log.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm text-gray-600">
-                {formatDate(log.createdAt)}
-              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">{formatDate(log.createdAt)}</td>
               <td className="px-4 py-3">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getActionColor(log.action)}`}>
+                <span
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${getActionColor(log.action)}`}
+                >
                   {log.action}
                 </span>
               </td>
@@ -111,12 +110,8 @@ const AuditLogTable: React.FC<AuditLogTableProps> = ({ logs, loading, onViewDeta
                   </span>
                 )}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
-                {log.userId.substring(0, 8)}...
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-500">
-                {log.ipAddress || '-'}
-              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">{log.userId.substring(0, 8)}...</td>
+              <td className="px-4 py-3 text-sm text-gray-500">{log.ipAddress || '-'}</td>
               <td className="px-4 py-3">
                 <button
                   onClick={() => onViewDetails(log)}
@@ -150,17 +145,19 @@ const AuditLogDetails: React.FC<AuditLogDetailsProps> = ({ log, onClose }) => {
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">Audit Log Details</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
         </div>
-        
+
         <div className="px-6 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -233,6 +230,7 @@ const AuditLogs: React.FC = () => {
 
   const [filters, setFilters] = useState<AuditFilters>({});
   const [showFilters, setShowFilters] = useState(false);
+  const toast = useToast();
 
   const actionTypes = [
     'USER_LOGIN',
@@ -249,17 +247,9 @@ const AuditLogs: React.FC = () => {
     'DATA_EXPORT',
   ];
 
-  const entityTypes = [
-    'user',
-    'flash_sale',
-    'order',
-    'product',
-    'queue',
-    'consent',
-    'settings',
-  ];
+  const entityTypes = ['user', 'flash_sale', 'order', 'product', 'queue', 'consent', 'settings'];
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -273,48 +263,51 @@ const AuditLogs: React.FC = () => {
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
-      const response = await API.get(`/api/admin/audit-logs?${params.toString()}`);
-      setLogs(response.data.logs);
-      setPagination(prev => ({
+      const response = await API.get<{ logs: AuditLogEntry[]; total: number; totalPages: number }>(
+        `/admin/audit-logs?${params.toString()}`,
+      );
+      setLogs(response.logs);
+      setPagination((prev) => ({
         ...prev,
-        total: response.data.total,
-        totalPages: response.data.totalPages,
+        total: response.total,
+        totalPages: response.totalPages,
       }));
     } catch (error) {
-      console.error('Error fetching audit logs:', error);
+      toast.error('Failed to fetch audit logs');
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, filters, toast]);
 
   useEffect(() => {
     fetchLogs();
-  }, [pagination.page, pagination.limit, filters]);
+  }, [fetchLogs]);
 
   const handleFilterChange = (key: keyof AuditFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value || undefined }));
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters((prev) => ({ ...prev, [key]: value || undefined }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const clearFilters = () => {
     setFilters({});
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleExport = async () => {
     try {
-      const token = localStorage.getItem('token') || '';
-      const response = await fetch('/api/admin/audit-logs/export', {
+      const token = localStorage.getItem('adminAccessToken') || localStorage.getItem('token') || '';
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+      const response = await fetch(`${baseUrl}/admin/audit-logs/export`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) {
         throw new Error('Export failed');
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -324,8 +317,9 @@ const AuditLogs: React.FC = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast.success('Audit logs exported successfully');
     } catch (error) {
-      console.error('Error exporting audit logs:', error);
+      toast.error('Failed to export audit logs');
     }
   };
 
@@ -342,7 +336,12 @@ const AuditLogs: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
             </svg>
             Filters
           </button>
@@ -351,7 +350,12 @@ const AuditLogs: React.FC = () => {
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
             </svg>
             Export CSV
           </button>
@@ -369,8 +373,10 @@ const AuditLogs: React.FC = () => {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="">All Actions</option>
-                {actionTypes.map(action => (
-                  <option key={action} value={action}>{action}</option>
+                {actionTypes.map((action) => (
+                  <option key={action} value={action}>
+                    {action}
+                  </option>
                 ))}
               </select>
             </div>
@@ -382,8 +388,10 @@ const AuditLogs: React.FC = () => {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
               >
                 <option value="">All Types</option>
-                {entityTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
+                {entityTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
                 ))}
               </select>
             </div>
@@ -417,10 +425,7 @@ const AuditLogs: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex justify-end">
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
+            <button onClick={clearFilters} className="px-4 py-2 text-gray-600 hover:text-gray-800">
               Clear Filters
             </button>
           </div>
@@ -428,23 +433,19 @@ const AuditLogs: React.FC = () => {
       )}
 
       <div className="bg-white rounded-lg shadow">
-        <AuditLogTable
-          logs={logs}
-          loading={loading}
-          onViewDetails={setSelectedLog}
-        />
+        <AuditLogTable logs={logs} loading={loading} onViewDetails={setSelectedLog} />
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
           <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
             <div className="text-sm text-gray-500">
               Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-              {pagination.total} logs
+              {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}{' '}
+              logs
             </div>
             <div className="flex space-x-2">
               <button
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                 disabled={pagination.page === 1}
                 className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >
@@ -454,7 +455,7 @@ const AuditLogs: React.FC = () => {
                 Page {pagination.page} of {pagination.totalPages}
               </span>
               <button
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                 disabled={pagination.page === pagination.totalPages}
                 className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
               >

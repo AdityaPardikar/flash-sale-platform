@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -572,29 +573,36 @@ const Deployments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const toast = useToast();
 
   const fetchData = useCallback(async () => {
     try {
       setError(null);
 
       const [envRes, depRes, relRes, statsRes] = await Promise.all([
-        API.get('/deployments/environments').catch(() => ({ data: [] })),
-        API.get('/deployments?limit=20').catch(() => ({ data: { deployments: [] } })),
-        API.get('/deployments/releases').catch(() => ({ data: { releases: [] } })),
-        API.get('/deployments/stats').catch(() => ({ data: null })),
+        API.get<EnvironmentStatus[]>('/deployments/environments').catch(
+          (): EnvironmentStatus[] => [],
+        ),
+        API.get<{ deployments: Deployment[] }>('/deployments?limit=20').catch(() => ({
+          deployments: [] as Deployment[],
+        })),
+        API.get<{ releases: Release[] }>('/deployments/releases').catch(() => ({
+          releases: [] as Release[],
+        })),
+        API.get<DeploymentStats>('/deployments/stats').catch((): null => null),
       ]);
 
-      if (envRes.data) setEnvStatuses(envRes.data);
-      if (depRes.data?.deployments) setDeployments(depRes.data.deployments);
-      if (relRes.data?.releases) setReleases(relRes.data.releases);
-      if (statsRes.data) setStats(statsRes.data);
+      if (Array.isArray(envRes)) setEnvStatuses(envRes);
+      if (depRes && 'deployments' in depRes) setDeployments(depRes.deployments);
+      if (relRes && 'releases' in relRes) setReleases(relRes.releases);
+      if (statsRes) setStats(statsRes);
     } catch (err) {
       setError('Failed to fetch deployment data');
-      console.error('[Deployments] Fetch error:', err);
+      toast.error('Failed to fetch deployment data');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
@@ -612,7 +620,7 @@ const Deployments: React.FC = () => {
       await API.post(`/deployments/${deploymentId}/rollback`, { environment });
       await fetchData();
     } catch (err) {
-      console.error('[Deployments] Rollback error:', err);
+      toast.error('Rollback failed');
       setError('Rollback failed');
     }
   };

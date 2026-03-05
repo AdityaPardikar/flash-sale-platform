@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertConfigList, AlertConfigData } from '../../components/admin/AlertConfig';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface Alert {
   id: number;
@@ -16,7 +17,7 @@ interface Alert {
   title: string;
   message: string;
   source: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   acknowledgedBy?: number;
   acknowledgedAt?: string;
   resolvedAt?: string;
@@ -48,6 +49,7 @@ export const Alerts: React.FC = () => {
     total: number;
     bySeverity: Record<string, number>;
   }>({ total: 0, bySeverity: {} });
+  const toast = useToast();
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -55,32 +57,34 @@ export const Alerts: React.FC = () => {
       const status = activeTab === 'active' ? 'active' : undefined;
       const params = new URLSearchParams();
       if (status) params.append('status', status);
-      
-      const response = await API.get(`/admin/alerts?${params}`);
+
+      const response = await API.get<{ alerts: Alert[] }>(`/admin/alerts?${params}`);
       setAlerts(response.alerts || []);
     } catch (err) {
       setError('Failed to fetch alerts');
-      console.error('Fetch alerts error:', err);
+      toast.error('Failed to fetch alerts');
     }
-  }, [activeTab]);
+  }, [activeTab, toast]);
 
   const fetchAlertCounts = useCallback(async () => {
     try {
-      const response = await API.get('/admin/alerts/counts');
+      const response = await API.get<{ total: number; bySeverity: Record<string, number> }>(
+        '/admin/alerts/counts',
+      );
       setAlertCounts(response);
     } catch (err) {
-      console.error('Fetch alert counts error:', err);
+      toast.error('Failed to fetch alert counts');
     }
-  }, []);
+  }, [toast]);
 
   const fetchConfigs = useCallback(async () => {
     try {
-      const response = await API.get('/admin/alerts/configs');
+      const response = await API.get<AlertConfigData[]>('/admin/alerts/configs');
       setConfigs(response || []);
     } catch (err) {
-      console.error('Fetch configs error:', err);
+      toast.error('Failed to fetch alert configs');
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -100,8 +104,9 @@ export const Alerts: React.FC = () => {
       await API.post(`/admin/alerts/${alertId}/acknowledge`);
       await fetchAlerts();
       await fetchAlertCounts();
+      toast.success('Alert acknowledged');
     } catch (err) {
-      console.error('Acknowledge error:', err);
+      toast.error('Failed to acknowledge alert');
     }
   };
 
@@ -110,8 +115,9 @@ export const Alerts: React.FC = () => {
       await API.post(`/admin/alerts/${alertId}/resolve`);
       await fetchAlerts();
       await fetchAlertCounts();
+      toast.success('Alert resolved');
     } catch (err) {
-      console.error('Resolve error:', err);
+      toast.error('Failed to resolve alert');
     }
   };
 
@@ -119,8 +125,9 @@ export const Alerts: React.FC = () => {
     try {
       await API.patch(`/admin/alerts/configs/${type}`, updates);
       await fetchConfigs();
+      toast.success('Configuration updated');
     } catch (err) {
-      console.error('Config update error:', err);
+      toast.error('Failed to update configuration');
       throw err;
     }
   };
@@ -234,9 +241,7 @@ export const Alerts: React.FC = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className={`font-semibold ${severityStyle.text}`}>
-                          {alert.title}
-                        </h3>
+                        <h3 className={`font-semibold ${severityStyle.text}`}>{alert.title}</h3>
                         <span
                           className={`px-2 py-0.5 text-xs font-medium rounded ${statusStyle.bg} ${statusStyle.text}`}
                         >
@@ -248,15 +253,15 @@ export const Alerts: React.FC = () => {
                           {alert.severity}
                         </span>
                       </div>
-                      
+
                       <p className="text-gray-700 mb-2">{alert.message}</p>
-                      
+
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span>Type: {formatType(alert.type)}</span>
                         <span>Source: {alert.source}</span>
                         <span>Created: {formatDate(alert.createdAt)}</span>
                       </div>
-                      
+
                       {alert.metadata && Object.keys(alert.metadata).length > 0 && (
                         <div className="mt-2 text-sm text-gray-600">
                           <details>

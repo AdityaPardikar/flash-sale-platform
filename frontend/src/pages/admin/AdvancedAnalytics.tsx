@@ -10,8 +10,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import RevenueChart from '../../components/admin/RevenueChart';
 import SalesFunnel from '../../components/admin/SalesFunnel';
 import LiveMetrics from '../../components/admin/LiveMetrics';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface DateRange {
   startDate: string;
@@ -111,21 +111,15 @@ function getDateRange(period: string): DateRange {
   };
 }
 
-async function fetchAnalytics<T>(endpoint: string, range: DateRange): Promise<T | null> {
+async function fetchAnalyticsData<T>(endpoint: string, range: DateRange): Promise<T | null> {
   try {
-    const token = localStorage.getItem('token');
     const params = new URLSearchParams({
       startDate: range.startDate,
       endDate: range.endDate,
     });
-    const res = await fetch(`${API_BASE}/analytics/${endpoint}?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    return json.data as T;
-  } catch (error) {
-    console.error(`Failed to fetch ${endpoint}:`, error);
+    const response = await API.get<{ data: T }>(`/analytics/${endpoint}?${params}`);
+    return response.data;
+  } catch {
     return null;
   }
 }
@@ -138,18 +132,19 @@ const AdvancedAnalytics: React.FC = () => {
   const [trafficData, setTrafficData] = useState<TrafficData | null>(null);
   const [retentionData, setRetentionData] = useState<UserRetentionData | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'traffic' | 'users'>(
-    'overview'
+    'overview',
   );
+  const toast = useToast();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     const range = getDateRange(period);
 
     const [summaryRes, revenueRes, trafficRes, retentionRes] = await Promise.all([
-      fetchAnalytics<ExecutiveSummary>('executive-summary', range),
-      fetchAnalytics<RevenueData>('revenue', range),
-      fetchAnalytics<TrafficData>('traffic', range),
-      fetchAnalytics<UserRetentionData>('user-retention', range),
+      fetchAnalyticsData<ExecutiveSummary>('executive-summary', range),
+      fetchAnalyticsData<RevenueData>('revenue', range),
+      fetchAnalyticsData<TrafficData>('traffic', range),
+      fetchAnalyticsData<UserRetentionData>('user-retention', range),
     ]);
 
     setSummary(summaryRes);
@@ -165,13 +160,14 @@ const AdvancedAnalytics: React.FC = () => {
 
   const handleExport = async (type: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+      const token = localStorage.getItem('adminAccessToken') || localStorage.getItem('token') || '';
       const range = getDateRange(period);
       const params = new URLSearchParams({
         startDate: range.startDate,
         endDate: range.endDate,
       });
-      const res = await fetch(`${API_BASE}/analytics/export/${type}?${params}`, {
+      const res = await fetch(`${baseUrl}/analytics/export/${type}?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -184,8 +180,9 @@ const AdvancedAnalytics: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
+      toast.success(`${type} data exported successfully`);
+    } catch {
+      toast.error('Export failed. Please try again.');
     }
   };
 
@@ -198,7 +195,7 @@ const AdvancedAnalytics: React.FC = () => {
       purchases: acc.purchases + sale.purchases,
       revenue: acc.revenue + sale.revenue,
     }),
-    { views: 0, queueJoins: 0, reservations: 0, purchases: 0, revenue: 0 }
+    { views: 0, queueJoins: 0, reservations: 0, purchases: 0, revenue: 0 },
   ) || { views: 0, queueJoins: 0, reservations: 0, purchases: 0, revenue: 0 };
 
   return (
@@ -460,7 +457,7 @@ const AdvancedAnalytics: React.FC = () => {
               {trafficData.hourlyDistribution.map((h) => {
                 const maxReqs = Math.max(
                   ...trafficData.hourlyDistribution.map((x) => x.requests),
-                  1
+                  1,
                 );
                 const heightPercent = (h.requests / maxReqs) * 100;
                 return (
