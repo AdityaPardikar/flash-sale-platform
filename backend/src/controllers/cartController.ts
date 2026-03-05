@@ -12,7 +12,7 @@ import cartService from '../services/cartService';
  * Helper to get user/guest IDs from request
  */
 const getCartIdentifiers = (req: Request): { userId?: string; guestId?: string } => {
-  const userId = (req as any).user?.id;
+  const userId = req.user?.id;
   const guestId = req.cookies?.guestId || (req.headers['x-guest-id'] as string);
   return { userId, guestId };
 };
@@ -205,7 +205,7 @@ export const clearCart = async (req: Request, res: Response): Promise<void> => {
  */
 export const migrateCart = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     const { guestId } = req.body;
 
     if (!userId) {

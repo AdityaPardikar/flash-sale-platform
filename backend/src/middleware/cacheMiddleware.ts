@@ -20,10 +20,11 @@ interface CacheOptions {
  * Generate default cache key from request
  */
 function defaultKeyGenerator(req: Request): string {
-  const userId = (req as any).user?.id || 'anonymous';
-  const query = Object.keys(req.query).length > 0 
-    ? `:${Buffer.from(JSON.stringify(req.query)).toString('base64').slice(0, 32)}`
-    : '';
+  const userId = req.user?.id || 'anonymous';
+  const query =
+    Object.keys(req.query).length > 0
+      ? `:${Buffer.from(JSON.stringify(req.query)).toString('base64').slice(0, 32)}`
+      : '';
   return `http:${req.method}:${req.path}:${userId}${query}`;
 }
 
@@ -53,7 +54,7 @@ export function cacheMiddleware(options: CacheOptions = {}) {
     try {
       // Try to get from cache
       const cached = await cacheService.get<{
-        body: any;
+        body: unknown;
         contentType: string;
         statusCode: number;
       }>(cacheKey);
@@ -72,8 +73,8 @@ export function cacheMiddleware(options: CacheOptions = {}) {
 
     // Cache miss - intercept the response
     const originalJson = res.json.bind(res);
-    
-    res.json = (body: any) => {
+
+    res.json = (body: unknown) => {
       // Cache the response
       const cacheData = {
         body,
@@ -158,12 +159,15 @@ export function cacheInvalidator(pattern: string) {
 /**
  * Middleware to add cache control headers
  */
-export function cacheControl(maxAge: number = 0, options: {
-  private?: boolean;
-  noCache?: boolean;
-  noStore?: boolean;
-  mustRevalidate?: boolean;
-} = {}) {
+export function cacheControl(
+  maxAge: number = 0,
+  options: {
+    private?: boolean;
+    noCache?: boolean;
+    noStore?: boolean;
+    mustRevalidate?: boolean;
+  } = {},
+) {
   return (req: Request, res: Response, next: NextFunction) => {
     const directives: string[] = [];
 
@@ -174,7 +178,7 @@ export function cacheControl(maxAge: number = 0, options: {
     } else {
       directives.push(options.private ? 'private' : 'public');
       directives.push(`max-age=${maxAge}`);
-      
+
       if (options.mustRevalidate) {
         directives.push('must-revalidate');
       }

@@ -11,44 +11,48 @@ import { Request, Response, NextFunction } from 'express';
  */
 export interface SecurityHeadersOptions {
   // Content Security Policy
-  contentSecurityPolicy?: boolean | {
-    directives?: Record<string, string[]>;
-  };
-  
+  contentSecurityPolicy?:
+    | boolean
+    | {
+        directives?: Record<string, string[]>;
+      };
+
   // X-Frame-Options
   frameOptions?: 'DENY' | 'SAMEORIGIN' | false;
-  
+
   // X-Content-Type-Options
   noSniff?: boolean;
-  
+
   // X-XSS-Protection
   xssFilter?: boolean;
-  
+
   // Strict-Transport-Security
-  hsts?: boolean | {
-    maxAge?: number;
-    includeSubDomains?: boolean;
-    preload?: boolean;
-  };
-  
+  hsts?:
+    | boolean
+    | {
+        maxAge?: number;
+        includeSubDomains?: boolean;
+        preload?: boolean;
+      };
+
   // Referrer-Policy
   referrerPolicy?: string | false;
-  
+
   // Permissions-Policy
   permissionsPolicy?: Record<string, string[]> | false;
-  
+
   // X-DNS-Prefetch-Control
   dnsPrefetchControl?: boolean;
-  
+
   // X-Download-Options
   ieNoOpen?: boolean;
-  
+
   // X-Permitted-Cross-Domain-Policies
   crossDomainPolicies?: 'none' | 'master-only' | 'by-content-type' | 'all' | false;
-  
+
   // Origin-Agent-Cluster
   originAgentCluster?: boolean;
-  
+
   // Cross-Origin headers
   crossOriginEmbedderPolicy?: 'require-corp' | 'credentialless' | false;
   crossOriginOpenerPolicy?: 'same-origin' | 'same-origin-allow-popups' | 'unsafe-none' | false;
@@ -140,9 +144,11 @@ export function securityHeaders(options: Partial<SecurityHeadersOptions> = {}) {
   return (req: Request, res: Response, next: NextFunction) => {
     // Content-Security-Policy
     if (config.contentSecurityPolicy) {
-      const directives = typeof config.contentSecurityPolicy === 'object'
-        ? config.contentSecurityPolicy.directives || {}
-        : (defaultOptions.contentSecurityPolicy as any).directives;
+      const directives =
+        typeof config.contentSecurityPolicy === 'object'
+          ? config.contentSecurityPolicy.directives || {}
+          : (defaultOptions.contentSecurityPolicy as { directives: Record<string, string[]> })
+              .directives;
       res.setHeader('Content-Security-Policy', buildCSP(directives));
     }
 
@@ -163,12 +169,15 @@ export function securityHeaders(options: Partial<SecurityHeadersOptions> = {}) {
 
     // Strict-Transport-Security
     if (config.hsts) {
-      const hstsConfig = typeof config.hsts === 'object' ? config.hsts : {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: false,
-      };
-      
+      const hstsConfig =
+        typeof config.hsts === 'object'
+          ? config.hsts
+          : {
+              maxAge: 31536000,
+              includeSubDomains: true,
+              preload: false,
+            };
+
       let hstsValue = `max-age=${hstsConfig.maxAge}`;
       if (hstsConfig.includeSubDomains) {
         hstsValue += '; includeSubDomains';

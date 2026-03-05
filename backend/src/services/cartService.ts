@@ -12,6 +12,7 @@
 
 import { redisClient, isRedisConnected } from '../utils/redis';
 import { getPool } from '../utils/database';
+import { logger } from '../utils/logger';
 import { REDIS_KEYS } from '../config/redisKeys';
 import { calculateFlashPrice } from '../utils/priceCalculations';
 
@@ -196,7 +197,7 @@ class CartService {
     this.calculateTotals(cart);
     await this.saveCart(cart);
 
-    console.log(`✅ Added ${quantity}x ${product.name} to cart`);
+    logger.info(`✅ Added ${quantity}x ${product.name} to cart`);
     return cart;
   }
 
@@ -252,7 +253,7 @@ class CartService {
     this.calculateTotals(cart);
     await this.saveCart(cart);
 
-    console.log(`🗑️ Removed ${removedItem.name} from cart`);
+    logger.info(`🗑️ Removed ${removedItem.name} from cart`);
     return cart;
   }
 
@@ -302,7 +303,7 @@ class CartService {
     // Clear guest cart
     await this.clearCart(undefined, guestId);
 
-    console.log(`✅ Migrated guest cart to user ${userId}`);
+    logger.info(`✅ Migrated guest cart to user ${userId}`);
     return userCart;
   }
 
@@ -474,7 +475,7 @@ class CartService {
         };
       }
     } catch (error) {
-      console.error('Failed to get product details:', error);
+      logger.error('Failed to get product details:', error);
       return null;
     }
   }
@@ -533,7 +534,7 @@ class CartService {
       JSON.stringify({ cartId: cart.id, reservations, createdAt: new Date() })
     );
 
-    console.log(`✅ Inventory reserved: ${reservationId}`);
+    logger.info(`✅ Inventory reserved: ${reservationId}`);
     return reservationId;
   }
 
@@ -559,7 +560,7 @@ class CartService {
     }
 
     await redisClient.del(`reservation:${reservationId}`);
-    console.log(`🔓 Reservation released: ${reservationId}`);
+    logger.info(`🔓 Reservation released: ${reservationId}`);
   }
 
   /**
@@ -568,7 +569,7 @@ class CartService {
   async cleanupExpiredCarts(): Promise<number> {
     // This would typically use Redis SCAN with pattern matching
     // For now, it's handled by Redis TTL automatically
-    console.log('🧹 Cart cleanup job completed');
+    logger.info('🧹 Cart cleanup job completed');
     return 0;
   }
 }

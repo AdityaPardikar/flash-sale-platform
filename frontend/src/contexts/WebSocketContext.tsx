@@ -46,9 +46,9 @@ export interface WebSocketContextType {
   leaveSaleRoom: (saleId: string) => void;
 
   // Event helpers
-  on: (event: string, handler: (...args: any[]) => void) => void;
-  off: (event: string, handler: (...args: any[]) => void) => void;
-  emit: (event: string, data?: any) => void;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  off: (event: string, handler: (...args: unknown[]) => void) => void;
+  emit: (event: string, data?: unknown) => void;
 }
 
 // ─── Context ────────────────────────────────────────────────
@@ -129,7 +129,7 @@ export function WebSocketProvider({ children, autoConnect = true }: WebSocketPro
       scheduleReconnect();
     });
 
-    socket.on('connect_error', (error) => {
+    socket.on('connect_error', (_error) => {
       setConnectionState('error');
       scheduleReconnect();
     });
@@ -147,6 +147,7 @@ export function WebSocketProvider({ children, autoConnect = true }: WebSocketPro
     });
 
     socketRef.current = socket;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getToken]);
 
   // Disconnect
@@ -164,6 +165,7 @@ export function WebSocketProvider({ children, autoConnect = true }: WebSocketPro
     }
     setConnectionState('disconnected');
     setReconnectAttempts(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reconnection with exponential backoff
@@ -195,6 +197,7 @@ export function WebSocketProvider({ children, autoConnect = true }: WebSocketPro
         socket.emit('heartbeat', { timestamp: Date.now() });
       }
     }, LATENCY_CHECK_INTERVAL);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stopLatencyCheck = useCallback(() => {
@@ -216,15 +219,15 @@ export function WebSocketProvider({ children, autoConnect = true }: WebSocketPro
 
   // ── Event Helpers ────────────────────────────────────
 
-  const on = useCallback((event: string, handler: (...args: any[]) => void) => {
-    socketRef.current?.on(event, handler);
+  const on = useCallback((event: string, handler: (...args: unknown[]) => void) => {
+    socketRef.current?.on(event, handler as (...args: unknown[]) => void);
   }, []);
 
-  const off = useCallback((event: string, handler: (...args: any[]) => void) => {
-    socketRef.current?.off(event, handler);
+  const off = useCallback((event: string, handler: (...args: unknown[]) => void) => {
+    socketRef.current?.off(event, handler as (...args: unknown[]) => void);
   }, []);
 
-  const emit = useCallback((event: string, data?: any) => {
+  const emit = useCallback((event: string, data?: unknown) => {
     socketRef.current?.emit(event, data);
   }, []);
 

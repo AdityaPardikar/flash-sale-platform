@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface UserDetail {
   id: string;
@@ -27,6 +28,7 @@ interface Props {
 }
 
 const UserDetails: React.FC<Props> = ({ userId, onClose }) => {
+  const toast = useToast();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,33 +39,35 @@ const UserDetails: React.FC<Props> = ({ userId, onClose }) => {
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchUserDetails();
-    fetchUserOrders();
-  }, [userId]);
-
-  const fetchUserDetails = async () => {
+  const fetchUserDetails = useCallback(async () => {
     try {
-      const response = await API.get(`/admin/users/${userId}`);
+      const response = await API.get<{ data: UserDetail }>(`/admin/users/${userId}`);
       setUser(response.data);
       setStatusForm({ status: response.data.status, reason: '' });
       setError(null);
     } catch (err) {
       setError('Failed to fetch user details');
-      console.error(err);
+      toast.error('Failed to fetch user details');
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, toast]);
 
-  const fetchUserOrders = async () => {
+  const fetchUserOrders = useCallback(async () => {
     try {
-      const response = await API.get(`/admin/users/${userId}/orders?limit=10&offset=0`);
-      setOrders(response.data.orders);
-    } catch (err) {
-      console.error('Error fetching user orders:', err);
+      const response = await API.get<{ orders: Order[] }>(
+        `/admin/users/${userId}/orders?limit=10&offset=0`,
+      );
+      setOrders(response.orders);
+    } catch (_err) {
+      toast.error('Failed to load user orders');
     }
-  };
+  }, [userId, toast]);
+
+  useEffect(() => {
+    fetchUserDetails();
+    fetchUserOrders();
+  }, [fetchUserDetails, fetchUserOrders]);
 
   const handleUpdateStatus = async () => {
     if (!statusForm.status) {
@@ -77,10 +81,11 @@ const UserDetails: React.FC<Props> = ({ userId, onClose }) => {
         reason: statusForm.reason,
       });
       setShowStatusForm(false);
+      toast.success('User status updated successfully');
       await fetchUserDetails();
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to update user status');
-      console.error(err);
+      toast.error('Failed to update user status');
     }
   };
 
@@ -99,10 +104,11 @@ const UserDetails: React.FC<Props> = ({ userId, onClose }) => {
       setShowRefundForm(false);
       setRefundForm({ order_id: '', amount: '', reason: '' });
       setSelectedOrder(null);
+      toast.success('Refund processed successfully');
       await fetchUserOrders();
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to process refund');
-      console.error(err);
+      toast.error('Failed to process refund');
     }
   };
 

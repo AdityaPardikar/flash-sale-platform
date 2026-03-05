@@ -14,6 +14,7 @@
 import { redisClient, isRedisConnected } from '../utils/redis';
 import { REDIS_KEYS } from '../config/redisKeys';
 import { priorityQueueService, QueueHealth } from './priorityQueueService';
+import { logger } from '../utils/logger';
 
 // Types
 export interface QueueScalingConfig {
@@ -59,7 +60,7 @@ export interface QueueConfig {
 
 // Constants
 const SCALING_COOLDOWN = 30; // seconds
-const METRICS_WINDOW = 300; // 5 minutes
+// const METRICS_WINDOW = 300; // 5 minutes
 const MIN_CONCURRENT = 10;
 const MAX_CONCURRENT = 500;
 
@@ -76,7 +77,7 @@ class SmartQueueService {
 
     // Calculate based on current trends and expected load
     const currentLoad = health.totalInQueue + health.processingCount;
-    const capacityRatio = currentLoad / config.maxConcurrent;
+    void (currentLoad / config.maxConcurrent); // capacityRatio reserved for future use
 
     // Estimate peak based on expected participants
     const predictedPeakSize = Math.round(expectedParticipants * 0.7); // Assume 70% concurrent peak
@@ -93,7 +94,7 @@ class SmartQueueService {
     // Calculate recommended concurrent processing
     const recommendedConcurrent = Math.min(
       MAX_CONCURRENT,
-      Math.max(MIN_CONCURRENT, Math.ceil(predictedPeakSize / 10))
+      Math.max(MIN_CONCURRENT, Math.ceil(predictedPeakSize / 10)),
     );
 
     // Determine congestion risk
@@ -188,7 +189,7 @@ class SmartQueueService {
       estimatedImprovement: Math.round((newMaxConcurrent / currentConfig.maxConcurrent - 1) * 100),
     };
 
-    console.log(`📊 Auto-scaled queue ${saleId}: ${reason}`);
+    logger.info(`📊 Auto-scaled queue ${saleId}: ${reason}`);
     return result;
   }
 
@@ -202,7 +203,7 @@ class SmartQueueService {
       maxRequestsPerSecond: 10,
       burstSize: 20,
       penaltySeconds: 60,
-    }
+    },
   ): Promise<{ allowed: boolean; remainingTokens: number; retryAfter?: number }> {
     if (!config.enabled) {
       return { allowed: true, remainingTokens: config.burstSize };
@@ -282,7 +283,7 @@ class SmartQueueService {
           timestamp: new Date(),
           queueSize: current.totalInQueue,
           throughput: current.throughput,
-        })
+        }),
       );
       await redisClient.ltrim(metricsKey, 0, 59);
       await redisClient.expire(metricsKey, 3600);
@@ -319,7 +320,7 @@ class SmartQueueService {
   async optimizeForSale(
     saleId: string,
     expectedParticipants: number,
-    saleDurationMinutes: number
+    saleDurationMinutes: number,
   ): Promise<QueueConfig & { optimizationNotes: string[] }> {
     const prediction = await this.predictCongestion(saleId, expectedParticipants);
     const notes: string[] = [];
@@ -327,11 +328,11 @@ class SmartQueueService {
     // Calculate optimal settings
     let maxConcurrent = Math.min(
       MAX_CONCURRENT,
-      Math.max(MIN_CONCURRENT, Math.ceil(expectedParticipants / 20))
+      Math.max(MIN_CONCURRENT, Math.ceil(expectedParticipants / 20)),
     );
 
     let batchSize = Math.ceil(maxConcurrent / 10);
-    let vipSlots = Math.ceil(maxConcurrent * 0.15); // 15% reserved for VIP
+    const vipSlots = Math.ceil(maxConcurrent * 0.15); // 15% reserved for VIP
 
     // Adjust based on duration
     if (saleDurationMinutes < 30) {
@@ -357,7 +358,7 @@ class SmartQueueService {
     notes.push(`Configured for ${expectedParticipants} expected participants`);
     notes.push(`Estimated throughput: ${Math.round(maxConcurrent / 2)} users/minute`);
 
-    console.log(`⚙️ Optimized queue for sale ${saleId}: ${notes.join(', ')}`);
+    logger.info(`⚙️ Optimized queue for sale ${saleId}: ${notes.join(', ')}`);
 
     // Return SmartQueueService's QueueConfig format
     return {

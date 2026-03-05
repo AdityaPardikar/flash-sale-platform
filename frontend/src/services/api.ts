@@ -143,9 +143,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 export { apiClient };
 export default API;
 
-export async function getProducts(): Promise<any[]> {
-  const response = await fetch(`${API_BASE_URL}/products`);
-  if (!response.ok) throw new Error('Failed to fetch products');
-  const data = await response.json();
-  return data.data || [];
+export async function getProducts(): Promise<Record<string, unknown>[]> {
+  const response = await API.get<{ data?: Record<string, unknown>[] }>('/products');
+  return response.data || [];
 }

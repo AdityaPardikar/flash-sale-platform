@@ -63,14 +63,14 @@ export const correlationIdMiddleware = (req: Request, res: Response, next: NextF
   res.setHeader('X-Request-ID', requestId);
 
   // Set logger context (backwards-compatible with existing logger)
-  logger.setRequestContext(requestId, (req as any).user?.id);
+  logger.setRequestContext(requestId, req.user?.id);
 
   // Create request-scoped context via AsyncLocalStorage
   const context: RequestContext = {
     correlationId,
     requestId,
     startTime: process.hrtime.bigint(),
-    userId: (req as any).user?.id,
+    userId: req.user?.id,
   };
 
   requestContextStorage.run(context, () => {

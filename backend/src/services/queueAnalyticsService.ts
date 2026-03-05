@@ -11,10 +11,8 @@
  * - Queue optimization reports
  */
 
-import { getPool } from '../utils/database';
 import { redisClient, isRedisConnected } from '../utils/redis';
 import { REDIS_KEYS } from '../config/redisKeys';
-import { QueueStatus } from './priorityQueueService';
 
 // Types
 export interface QueueKPIs {
@@ -49,7 +47,7 @@ export interface JourneyStage {
   enteredAt: Date;
   exitedAt?: Date;
   duration?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AbandonmentAnalysis {
@@ -119,7 +117,7 @@ class QueueAnalyticsService {
     userId: string,
     saleId: string,
     stage: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     if (!isRedisConnected()) return;
 
@@ -171,7 +169,7 @@ class QueueAnalyticsService {
     userId: string,
     saleId: string,
     outcome: 'completed' | 'abandoned',
-    abandonmentReason?: string
+    abandonmentReason?: string,
   ): Promise<UserJourney | null> {
     if (!isRedisConnected()) return null;
 
@@ -311,7 +309,7 @@ class QueueAnalyticsService {
     const conversionEfficiency = kpis.metrics.conversionRate;
 
     const overallScore = Math.round(
-      throughputEfficiency * 0.3 + waitTimeEfficiency * 0.3 + conversionEfficiency * 0.4
+      throughputEfficiency * 0.3 + waitTimeEfficiency * 0.3 + conversionEfficiency * 0.4,
     );
 
     // Identify bottlenecks
@@ -394,7 +392,7 @@ class QueueAnalyticsService {
 
   // Private helper methods
 
-  private async calculateMetrics(saleId: string, period: string): Promise<QueueKPIs['metrics']> {
+  private async calculateMetrics(saleId: string, _period: string): Promise<QueueKPIs['metrics']> {
     // Default metrics
     const defaults: QueueKPIs['metrics'] = {
       totalEnqueued: 0,

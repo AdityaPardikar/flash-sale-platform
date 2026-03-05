@@ -10,11 +10,12 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { Express, Request, Response } from 'express';
 import { typeDefs } from './schema';
 import { resolvers, createDataLoaders } from './resolvers';
-import { verifyToken } from '../utils/jwt';
+import { verifyToken, TokenPayload } from '../utils/jwt';
+import { logger } from '../utils/logger';
 
 // Context interface
 interface Context {
-  user: any | null;
+  user: TokenPayload | null;
   loaders: ReturnType<typeof createDataLoaders>;
 }
 
@@ -81,7 +82,7 @@ export async function applyGraphQLMiddleware(app: Express) {
         },
         {
           contextValue: { user, loaders },
-        }
+        },
       );
 
       // Handle single result
@@ -90,10 +91,10 @@ export async function applyGraphQLMiddleware(app: Express) {
       } else {
         res.status(400).json({ errors: [{ message: 'Streaming not supported' }] });
       }
-    } catch (error: any) {
-      console.error('GraphQL execution error:', error);
+    } catch (error: unknown) {
+      logger.error('GraphQL execution error:', error);
       res.status(500).json({
-        errors: [{ message: error.message || 'Internal server error' }],
+        errors: [{ message: error instanceof Error ? error.message : 'Internal server error' }],
       });
     }
   });
@@ -106,7 +107,7 @@ export async function applyGraphQLMiddleware(app: Express) {
     });
   });
 
-  console.log('🚀 GraphQL server ready at /graphql');
+  logger.info('GraphQL server ready at /graphql');
 
   return server;
 }

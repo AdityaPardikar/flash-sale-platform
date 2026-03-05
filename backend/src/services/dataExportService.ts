@@ -15,7 +15,7 @@ import { AuditAction } from '../models/auditLog';
  */
 interface DataSection {
   name: string;
-  data: any[];
+  data: unknown[];
   description: string;
 }
 
@@ -60,23 +60,23 @@ export const dataExportService = {
    */
   async requestExport(userId: string): Promise<string> {
     const exportId = `export_${userId}_${Date.now()}`;
-    
+
     const request: ExportRequest = {
       id: exportId,
       userId,
       status: 'pending',
       requestedAt: new Date(),
     };
-    
+
     exportRequests.set(exportId, request);
-    
+
     logger.info('Data export requested', { userId, exportId });
-    
+
     // Start async processing
-    this.processExport(exportId).catch(error => {
+    this.processExport(exportId).catch((error) => {
       logger.error('Export processing failed', { exportId, error: error.message });
     });
-    
+
     return exportId;
   },
 
@@ -94,22 +94,22 @@ export const dataExportService = {
 
     try {
       const data = await this.generateExport(request.userId);
-      
+
       // In production, save to file storage and generate download URL
       // For now, we'll store it temporarily
       request.status = 'completed';
       request.completedAt = new Date();
       request.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-      
+
       exportRequests.set(exportId, request);
-      
+
       // Log audit event
       await auditLogService.logAction({
         userId: request.userId,
         action: AuditAction.DATA_EXPORT,
         entityType: 'user',
         entityId: request.userId,
-        changes: { exportId, sections: data.sections.map(s => s.name) },
+        changes: { exportId, sections: data.sections.map((s) => s.name) },
       });
 
       logger.info('Data export completed', { exportId, userId: request.userId });
@@ -125,12 +125,12 @@ export const dataExportService = {
    */
   async generateExport(userId: string): Promise<DataExport> {
     const requestedAt = new Date().toISOString();
-    
+
     // Fetch user profile
     const userResult = await query(
       `SELECT id, email, name, role, created_at, updated_at
        FROM users WHERE id = $1`,
-      [userId]
+      [userId],
     );
 
     if (userResult.rows.length === 0) {
@@ -153,9 +153,9 @@ export const dataExportService = {
               created_at, updated_at
        FROM orders WHERE user_id = $1
        ORDER BY created_at DESC`,
-      [userId]
+      [userId],
     );
-    
+
     if (ordersResult.rows.length > 0) {
       sections.push({
         name: 'orders',
@@ -170,7 +170,7 @@ export const dataExportService = {
               turn_started_at, completed_at
        FROM queue_entries WHERE user_id = $1
        ORDER BY joined_at DESC`,
-      [userId]
+      [userId],
     );
 
     if (queueResult.rows.length > 0) {
@@ -187,14 +187,14 @@ export const dataExportService = {
        FROM analytics_events WHERE user_id = $1
        ORDER BY created_at DESC
        LIMIT 1000`,
-      [userId]
+      [userId],
     );
 
     if (analyticsResult.rows.length > 0) {
       sections.push({
         name: 'activity_log',
         description: 'Your activity on the platform',
-        data: analyticsResult.rows.map(row => ({
+        data: analyticsResult.rows.map((row) => ({
           type: row.event_type,
           timestamp: row.created_at,
           details: removeSensitiveFields(row.metadata || {}),
@@ -208,7 +208,7 @@ export const dataExportService = {
        FROM audit_logs WHERE user_id = $1
        ORDER BY created_at DESC
        LIMIT 500`,
-      [userId]
+      [userId],
     );
 
     if (auditResult.rows.length > 0) {
@@ -247,16 +247,14 @@ export const dataExportService = {
    */
   async getUserExports(userId: string): Promise<ExportRequest[]> {
     const exports: ExportRequest[] = [];
-    
+
     for (const request of exportRequests.values()) {
       if (request.userId === userId) {
         exports.push(request);
       }
     }
-    
-    return exports.sort((a, b) => 
-      b.requestedAt.getTime() - a.requestedAt.getTime()
-    );
+
+    return exports.sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
   },
 
   /**
@@ -264,7 +262,7 @@ export const dataExportService = {
    */
   async downloadExport(exportId: string, userId: string): Promise<DataExport | null> {
     const request = exportRequests.get(exportId);
-    
+
     if (!request || request.userId !== userId) {
       return null;
     }

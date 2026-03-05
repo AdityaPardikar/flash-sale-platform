@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { API } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import MetricCard from '../components/MetricCard';
 
 interface DashboardData {
@@ -38,23 +39,23 @@ const Overview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const toast = useToast();
 
   const fetchDashboardData = async () => {
     try {
-      const token = localStorage.getItem('adminAccessToken');
-      const response = await axios.get('/api/admin/overview', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await API.get<{ success: boolean; data: DashboardData; message?: string }>(
+        '/admin/overview',
+      );
 
-      if (response.data.success) {
-        setData(response.data.data);
+      if (response.success) {
+        setData(response.data);
         setLastUpdated(new Date());
         setError(null);
       }
     } catch (err: unknown) {
-      const error = err as Record<string, any>; // @ts-ignore
-      console.error('Error fetching dashboard data:', err);
-      setError(error.response?.data?.message || 'Failed to load dashboard data');
+      const error = err as { message?: string };
+      toast.error(error.message || 'Failed to load dashboard data');
+      setError(error.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }

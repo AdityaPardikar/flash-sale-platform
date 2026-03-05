@@ -238,7 +238,7 @@ describe('E2E: Token Refresh Flow', () => {
 
 describe('E2E: JWT Token Utilities', () => {
   it('generateToken → verifyToken round-trip', () => {
-    const token = generateToken({ userId: 'u-1', email: 'u@e.com' });
+    const token = generateToken({ id: 'u-1', userId: 'u-1', email: 'u@e.com' });
     expect(typeof token).toBe('string');
     expect(token.split('.')).toHaveLength(3); // header.payload.signature
 
@@ -254,7 +254,7 @@ describe('E2E: JWT Token Utilities', () => {
   });
 
   it('verifyToken rejects tampered tokens', () => {
-    const token = generateToken({ userId: 'u-1', email: 'u@e.com' });
+    const token = generateToken({ id: 'u-1', userId: 'u-1', email: 'u@e.com' });
     const tampered = token.slice(0, -4) + 'XXXX';
 
     expect(() => verifyToken(tampered)).toThrow();
@@ -279,7 +279,7 @@ describe('E2E: JWT Token Utilities', () => {
 
 describe('E2E: Auth Middleware Integration', () => {
   it('allows request with valid Bearer token', () => {
-    const token = generateToken({ userId: 'u-1', email: 'u@e.com' });
+    const token = generateToken({ id: 'u-1', userId: 'u-1', email: 'u@e.com' });
     const req: any = {
       headers: { authorization: `Bearer ${token}` },
       header: (name: string) =>
@@ -417,7 +417,7 @@ describe('E2E: Complete Auth Journey', () => {
     expect(res.status).toHaveBeenCalledWith(201);
 
     // Step 2: Login
-    const accessToken = generateToken({ userId: user.id, email: user.email });
+    const accessToken = generateToken({ id: user.id, userId: user.id, email: user.email });
     const refreshTkn = generateRefreshToken({ userId: user.id, email: user.email });
 
     mockAuthService.login.mockResolvedValue({

@@ -12,7 +12,7 @@ interface QueueEntry {
 }
 
 interface QueueStatusProps {
-  user: any;
+  user: { id: string; email: string; username: string } | null;
 }
 
 const mockQueueEntries: QueueEntry[] = [
@@ -56,9 +56,13 @@ const QueueCard: React.FC<{ entry: QueueEntry }> = ({ entry }) => {
   };
 
   return (
-    <div className={`bg-white/10 backdrop-blur-md rounded-2xl overflow-hidden border ${
-      entry.status === 'ready' ? 'border-green-500 shadow-lg shadow-green-500/20' : 'border-white/20'
-    } transition-all duration-300`}>
+    <div
+      className={`bg-white/10 backdrop-blur-md rounded-2xl overflow-hidden border ${
+        entry.status === 'ready'
+          ? 'border-green-500 shadow-lg shadow-green-500/20'
+          : 'border-white/20'
+      } transition-all duration-300`}
+    >
       {/* Header */}
       <div className={`bg-gradient-to-r ${statusColors[entry.status]} p-4`}>
         <div className="flex justify-between items-center">
@@ -124,7 +128,7 @@ const QueueCard: React.FC<{ entry: QueueEntry }> = ({ entry }) => {
         {/* Info Text */}
         {entry.status === 'waiting' && (
           <p className="text-center text-gray-400 text-sm mt-4">
-            💡 Stay on this page! You'll be notified when it's your turn.
+            💡 Stay on this page! You&apos;ll be notified when it&apos;s your turn.
           </p>
         )}
       </div>
@@ -166,7 +170,7 @@ const QueueStatus: React.FC<QueueStatusProps> = ({ user }) => {
             };
           }
           return entry;
-        })
+        }),
       );
     }, 5000);
 
@@ -250,7 +254,8 @@ const QueueStatus: React.FC<QueueStatusProps> = ({ user }) => {
           <div className="text-8xl mb-6">📭</div>
           <h2 className="text-3xl font-bold text-white mb-4">No Active Queues</h2>
           <p className="text-gray-300 mb-8 max-w-md mx-auto">
-            You haven't joined any flash sale queues yet. Browse our live sales and join a queue to get started!
+            You haven&apos;t joined any flash sale queues yet. Browse our live sales and join a
+            queue to get started!
           </p>
           <a
             href="/"
@@ -268,17 +273,23 @@ const QueueStatus: React.FC<QueueStatusProps> = ({ user }) => {
           <div className="text-center">
             <div className="text-3xl mb-2">1️⃣</div>
             <h4 className="font-semibold text-white mb-1">Join the Queue</h4>
-            <p className="text-gray-400 text-sm">Click "Buy Now" on any active flash sale to secure your spot</p>
+            <p className="text-gray-400 text-sm">
+              Click &quot;Buy Now&quot; on any active flash sale to secure your spot
+            </p>
           </div>
           <div className="text-center">
             <div className="text-3xl mb-2">2️⃣</div>
             <h4 className="font-semibold text-white mb-1">Wait Your Turn</h4>
-            <p className="text-gray-400 text-sm">Your position updates in real-time as others complete purchases</p>
+            <p className="text-gray-400 text-sm">
+              Your position updates in real-time as others complete purchases
+            </p>
           </div>
           <div className="text-center">
             <div className="text-3xl mb-2">3️⃣</div>
             <h4 className="font-semibold text-white mb-1">Complete Purchase</h4>
-            <p className="text-gray-400 text-sm">When it's your turn, you have 5 minutes to complete checkout</p>
+            <p className="text-gray-400 text-sm">
+              When it&apos;s your turn, you have 5 minutes to complete checkout
+            </p>
           </div>
         </div>
       </div>

@@ -44,7 +44,7 @@ export class AuthService {
     const userId = generateRandomId();
     const result = await query(
       'INSERT INTO users (id, email, username, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, email, username, created_at',
-      [userId, email, username, passwordHash]
+      [userId, email, username, passwordHash],
     );
 
     if (result.rows.length === 0) {
@@ -61,9 +61,10 @@ export class AuthService {
     }
 
     // Find user
-    const result = await query('SELECT id, email, username, password_hash FROM users WHERE email = $1', [
-      email,
-    ]);
+    const result = await query(
+      'SELECT id, email, username, password_hash FROM users WHERE email = $1',
+      [email],
+    );
 
     if (result.rows.length === 0) {
       throw new Error('Invalid email or password');
@@ -79,6 +80,7 @@ export class AuthService {
 
     // Generate tokens
     const accessToken = generateToken({
+      id: user.id,
       userId: user.id,
       email: user.email,
     });
@@ -116,6 +118,7 @@ export class AuthService {
   async refreshToken(userId: string, refreshToken: string): Promise<string> {
     // Validate refresh token would be implemented here
     const accessToken = generateToken({
+      id: userId,
       userId,
       email: 'user@example.com', // Would fetch from DB
     });

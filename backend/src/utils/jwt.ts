@@ -5,6 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-productio
 const JWT_EXPIRY = '24h';
 
 export interface TokenPayload {
+  id: string;
   userId: string;
   email: string;
 }
@@ -16,6 +17,8 @@ export function generateToken(payload: TokenPayload): string {
 export function verifyToken(token: string): TokenPayload | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    // Ensure id is always set from userId for convenience
+    decoded.id = decoded.id || decoded.userId;
     return decoded;
   } catch (error) {
     return null;

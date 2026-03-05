@@ -96,7 +96,6 @@ export class AnalyticsCollector {
    */
   private async writeEventToStreams(event: AnalyticsEvent): Promise<void> {
     const eventData = this.serializeEvent(event);
-    const timestamp = Date.now();
 
     // Write to main stream
     await this.redisClient.xadd(this.STREAMS_KEY.ALL_EVENTS, '*', ...this.objectToArray(eventData));
@@ -105,7 +104,7 @@ export class AnalyticsCollector {
     await this.redisClient.xadd(
       this.STREAMS_KEY.EVENTS_BY_TYPE(event.event_type),
       '*',
-      ...this.objectToArray(eventData)
+      ...this.objectToArray(eventData),
     );
 
     // Write to sale stream if applicable
@@ -113,7 +112,7 @@ export class AnalyticsCollector {
       await this.redisClient.xadd(
         this.STREAMS_KEY.SALE_EVENTS(event.sale_id),
         '*',
-        ...this.objectToArray(eventData)
+        ...this.objectToArray(eventData),
       );
     }
 
@@ -122,7 +121,7 @@ export class AnalyticsCollector {
       await this.redisClient.xadd(
         this.STREAMS_KEY.USER_EVENTS(event.user_id),
         '*',
-        ...this.objectToArray(eventData)
+        ...this.objectToArray(eventData),
       );
     }
 
@@ -131,7 +130,7 @@ export class AnalyticsCollector {
       await this.redisClient.xadd(
         this.STREAMS_KEY.QUEUE_EVENTS(event.queue_id),
         '*',
-        ...this.objectToArray(eventData)
+        ...this.objectToArray(eventData),
       );
     }
 
@@ -228,7 +227,7 @@ export class AnalyticsCollector {
     startDate: Date,
     endDate: Date,
     eventType?: EventType,
-    limit: number = 1000
+    limit: number = 1000,
   ): Promise<AnalyticsEvent[]> {
     const streamKey = eventType
       ? this.STREAMS_KEY.EVENTS_BY_TYPE(eventType)
@@ -250,7 +249,7 @@ export class AnalyticsCollector {
     const stats = await this.redisClient.hgetall(key);
 
     // Convert to proper types
-    const result: Record<string, any> = {};
+    const result: Record<string, string | number> = {};
     for (const [k, v] of Object.entries(stats)) {
       if (k === 'total_amount') {
         result[k] = parseFloat(v);

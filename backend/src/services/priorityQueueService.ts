@@ -14,6 +14,7 @@
 import { redisClient, isRedisConnected } from '../utils/redis';
 import { REDIS_KEYS } from '../config/redisKeys';
 import { vipService, VIPTier } from './vipService';
+import { logger } from '../utils/logger';
 
 // Types
 export interface QueueEntry {
@@ -26,7 +27,7 @@ export interface QueueEntry {
   estimatedWaitTime: number;
   status: QueueStatus;
   vipTier: VIPTier;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export enum QueueStatus {
@@ -73,7 +74,7 @@ class PriorityQueueService {
   async enqueue(
     userId: string,
     saleId: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>,
   ): Promise<QueueEntry> {
     // Get user's VIP status
     const membership = await vipService.getMembership(userId);
@@ -113,14 +114,14 @@ class PriorityQueueService {
     await redisClient.setex(
       `${REDIS_KEYS.QUEUE_PREFIX}:entry:${entryId}`,
       QUEUE_ENTRY_TTL,
-      JSON.stringify(entry)
+      JSON.stringify(entry),
     );
 
     // Track user's queue entry
     await redisClient.setex(
       `${REDIS_KEYS.QUEUE_PREFIX}:user:${userId}:${saleId}`,
       QUEUE_ENTRY_TTL,
-      entryId
+      entryId,
     );
 
     // Calculate position
@@ -128,8 +129,8 @@ class PriorityQueueService {
     entry.position = position;
     entry.estimatedWaitTime = await this.estimateWaitTime(saleId, position);
 
-    console.log(
-      `🎫 User ${userId} joined queue for sale ${saleId} at position ${position} (VIP: ${vipTier})`
+    logger.info(
+      `🎫 User ${userId} joined queue for sale ${saleId} at position ${position} (VIP: ${vipTier})`,
     );
 
     return entry;
@@ -170,7 +171,7 @@ class PriorityQueueService {
     // Check current processing count
     const currentProcessing = await redisClient.scard(processingKey);
     if (currentProcessing >= config.maxConcurrent) {
-      console.log(`⏸️ Queue ${saleId} at capacity (${currentProcessing}/${config.maxConcurrent})`);
+      logger.info(`⏸️ Queue ${saleId} at capacity (${currentProcessing}/${config.maxConcurrent})`);
       return [];
     }
 
@@ -194,14 +195,14 @@ class PriorityQueueService {
       await redisClient.setex(
         `${REDIS_KEYS.QUEUE_PREFIX}:entry:${entry.id}`,
         config.processingTimeoutSeconds,
-        JSON.stringify(entry)
+        JSON.stringify(entry),
       );
 
       processedEntries.push(entry);
     }
 
     if (processedEntries.length > 0) {
-      console.log(`⚡ Processing ${processedEntries.length} users for sale ${saleId}`);
+      logger.info(`⚡ Processing ${processedEntries.length} users for sale ${saleId}`);
     }
 
     return processedEntries;
@@ -222,7 +223,7 @@ class PriorityQueueService {
     await redisClient.setex(
       `${REDIS_KEYS.QUEUE_PREFIX}:entry:${entryId}`,
       PROCESSING_TIMEOUT,
-      JSON.stringify(entry)
+      JSON.stringify(entry),
     );
 
     // Move to ready set
@@ -250,7 +251,7 @@ class PriorityQueueService {
       // Store completion for analytics
       await redisClient.lpush(
         `${REDIS_KEYS.QUEUE_PREFIX}:completed:${saleId}`,
-        JSON.stringify({ ...entry, completedAt: new Date() })
+        JSON.stringify({ ...entry, completedAt: new Date() }),
       );
       await redisClient.ltrim(`${REDIS_KEYS.QUEUE_PREFIX}:completed:${saleId}`, 0, 999);
     }
@@ -409,7 +410,7 @@ class PriorityQueueService {
     }
 
     if (cleaned > 0) {
-      console.log(`🧹 Cleaned ${cleaned} expired queue entries for sale ${saleId}`);
+      logger.info(`🧹 Cleaned ${cleaned} expired queue entries for sale ${saleId}`);
     }
 
     return cleaned;

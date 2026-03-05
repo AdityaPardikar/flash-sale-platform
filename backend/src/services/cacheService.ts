@@ -5,11 +5,11 @@
  */
 
 import redis from '../utils/redis';
-import { CACHE_TTL, withPrefix, CACHE_PATTERNS } from '../utils/cacheKeys';
+import { CACHE_TTL, withPrefix } from '../utils/cacheKeys';
 import { logger } from '../utils/logger';
 
 // In-memory cache for L1 caching
-const memoryCache: Map<string, { value: any; expiry: number }> = new Map();
+const memoryCache: Map<string, { value: unknown; expiry: number }> = new Map();
 const MEMORY_CACHE_MAX_SIZE = 1000;
 const MEMORY_CACHE_DEFAULT_TTL = 30; // 30 seconds for L1 cache
 
@@ -61,9 +61,10 @@ function cleanMemoryCache(): void {
 
   // Evict oldest entries if over max size
   if (memoryCache.size > MEMORY_CACHE_MAX_SIZE) {
-    const sortedEntries = Array.from(memoryCache.entries())
-      .sort((a, b) => a[1].expiry - b[1].expiry);
-    
+    const sortedEntries = Array.from(memoryCache.entries()).sort(
+      (a, b) => a[1].expiry - b[1].expiry,
+    );
+
     const toDelete = sortedEntries.slice(0, memoryCache.size - MEMORY_CACHE_MAX_SIZE);
     for (const [key] of toDelete) {
       memoryCache.delete(key);
@@ -90,7 +91,7 @@ export async function get<T>(key: string): Promise<T | null> {
     const redisValue = await redis.get(prefixedKey);
     if (redisValue) {
       const parsed = JSON.parse(redisValue) as T;
-      
+
       // Populate L1 cache
       memoryCache.set(prefixedKey, {
         value: parsed,
@@ -112,7 +113,11 @@ export async function get<T>(key: string): Promise<T | null> {
 /**
  * Set value in cache (both L1 and L2)
  */
-export async function set<T>(key: string, value: T, ttlSeconds: number = CACHE_TTL.DEFAULT): Promise<void> {
+export async function set<T>(
+  key: string,
+  value: T,
+  ttlSeconds: number = CACHE_TTL.DEFAULT,
+): Promise<void> {
   const prefixedKey = withPrefix(key);
   const serialized = JSON.stringify(value);
 
@@ -143,10 +148,10 @@ export async function del(key: string): Promise<void> {
   try {
     // Delete from L1
     memoryCache.delete(prefixedKey);
-    
+
     // Delete from L2
     await redis.del(prefixedKey);
-    
+
     cacheStats.deletes++;
   } catch (error) {
     logger.error('Cache delete error', { key, error: (error as Error).message });
@@ -174,7 +179,7 @@ export async function delPattern(pattern: string): Promise<number> {
     do {
       const [newCursor, keys] = await redis.scan(cursor, 'MATCH', prefixedPattern, 'COUNT', 100);
       cursor = newCursor;
-      
+
       if (keys.length > 0) {
         await redis.del(...keys);
         deletedCount += keys.length;
@@ -195,7 +200,7 @@ export async function delPattern(pattern: string): Promise<number> {
 export async function getOrSet<T>(
   key: string,
   fetchFn: () => Promise<T>,
-  ttlSeconds: number = CACHE_TTL.DEFAULT
+  ttlSeconds: number = CACHE_TTL.DEFAULT,
 ): Promise<T> {
   // Try to get from cache
   const cached = await get<T>(key);
@@ -205,10 +210,10 @@ export async function getOrSet<T>(
 
   // Fetch fresh data
   const value = await fetchFn();
-  
+
   // Cache the result
   await set(key, value, ttlSeconds);
-  
+
   return value;
 }
 
@@ -217,7 +222,7 @@ export async function getOrSet<T>(
  */
 export async function invalidateEntity(
   entityType: 'product' | 'flash_sale' | 'user' | 'queue' | 'analytics',
-  entityId?: string | number
+  entityId?: string | number,
 ): Promise<void> {
   let pattern: string;
 
@@ -262,13 +267,13 @@ export async function mget<T>(keys: string[]): Promise<(T | null)[]> {
         if (redisValue) {
           const parsed = JSON.parse(redisValue) as T;
           results[redisKeys[i].index] = parsed;
-          
+
           // Populate L1 cache
           memoryCache.set(redisKeys[i].key, {
             value: parsed,
             expiry: Date.now() + MEMORY_CACHE_DEFAULT_TTL * 1000,
           });
-          
+
           cacheStats.redisHits++;
           cacheStats.hits++;
         } else {
@@ -287,7 +292,7 @@ export async function mget<T>(keys: string[]): Promise<(T | null)[]> {
  * Bulk set multiple keys
  */
 export async function mset(
-  entries: { key: string; value: any; ttl?: number }[]
+  entries: { key: string; value: unknown; ttl?: number }[],
 ): Promise<void> {
   try {
     const pipeline = redis.pipeline();
@@ -358,10 +363,10 @@ export async function clearAll(): Promise<void> {
   try {
     // Clear L1
     memoryCache.clear();
-    
+
     // Clear all keys with our prefix
     await delPattern('*');
-    
+
     logger.info('Cache cleared');
   } catch (error) {
     logger.error('Cache clear error', { error: (error as Error).message });

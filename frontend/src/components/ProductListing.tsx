@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../contexts/ToastContext';
 
 interface Product {
   id: string;
@@ -13,7 +14,7 @@ interface Product {
 }
 
 interface ProductListingProps {
-  user: any;
+  user: { id: string; email: string; username: string } | null;
 }
 
 const mockProducts: Product[] = [
@@ -107,7 +108,16 @@ const mockProducts: Product[] = [
   },
 ];
 
-const categories = ['All', 'Phones', 'Tablets', 'Audio', 'Wearables', 'Gaming', 'Cameras', 'Accessories'];
+const categories = [
+  'All',
+  'Phones',
+  'Tablets',
+  'Audio',
+  'Wearables',
+  'Gaming',
+  'Cameras',
+  'Accessories',
+];
 
 const ProductCard: React.FC<{ product: Product; onAddToCart: (id: string) => void }> = ({
   product,
@@ -123,7 +133,9 @@ const ProductCard: React.FC<{ product: Product; onAddToCart: (id: string) => voi
         />
         {!product.inStock && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <span className="bg-red-500 text-white px-4 py-2 rounded-full font-bold">Out of Stock</span>
+            <span className="bg-red-500 text-white px-4 py-2 rounded-full font-bold">
+              Out of Stock
+            </span>
           </div>
         )}
         <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 rounded-full">
@@ -148,7 +160,9 @@ const ProductCard: React.FC<{ product: Product; onAddToCart: (id: string) => voi
               </svg>
             ))}
           </div>
-          <span className="text-gray-400 text-sm">{product.rating} ({product.reviews})</span>
+          <span className="text-gray-400 text-sm">
+            {product.rating} ({product.reviews})
+          </span>
         </div>
 
         <div className="flex items-center justify-between">
@@ -171,6 +185,7 @@ const ProductCard: React.FC<{ product: Product; onAddToCart: (id: string) => voi
 };
 
 const ProductListing: React.FC<ProductListingProps> = ({ user }) => {
+  const toast = useToast();
   const [products] = useState<Product[]>(mockProducts);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,7 +195,8 @@ const ProductListing: React.FC<ProductListingProps> = ({ user }) => {
   const filteredProducts = products
     .filter((product) => {
       const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      const matchesSearch =
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     })
@@ -199,13 +215,12 @@ const ProductListing: React.FC<ProductListingProps> = ({ user }) => {
 
   const handleAddToCart = (productId: string) => {
     if (!user) {
-      alert('Please login to add items to cart!');
+      toast.warning('Please login to add items to cart!');
       return;
     }
     setCartItems([...cartItems, productId]);
-    // Show a toast notification
     const product = products.find((p) => p.id === productId);
-    console.log(`Added ${product?.name} to cart`);
+    toast.success(`Added ${product?.name || 'item'} to cart`);
   };
 
   return (
@@ -221,7 +236,12 @@ const ProductListing: React.FC<ProductListingProps> = ({ user }) => {
         <div className="fixed bottom-6 right-6 z-50">
           <button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-full shadow-lg shadow-purple-500/25 flex items-center space-x-2 hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
             <span className="font-bold">{cartItems.length} items</span>
           </button>
@@ -233,8 +253,18 @@ const ProductListing: React.FC<ProductListingProps> = ({ user }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search */}
           <div className="relative">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <input
               type="text"
@@ -252,20 +282,32 @@ const ProductListing: React.FC<ProductListingProps> = ({ user }) => {
             className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
           >
             {categories.map((cat) => (
-              <option key={cat} value={cat} className="bg-gray-900">{cat}</option>
+              <option key={cat} value={cat} className="bg-gray-900">
+                {cat}
+              </option>
             ))}
           </select>
 
           {/* Sort */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) =>
+              setSortBy(e.target.value as 'name' | 'price-low' | 'price-high' | 'rating')
+            }
             className="bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
           >
-            <option value="name" className="bg-gray-900">Sort by Name</option>
-            <option value="price-low" className="bg-gray-900">Price: Low to High</option>
-            <option value="price-high" className="bg-gray-900">Price: High to Low</option>
-            <option value="rating" className="bg-gray-900">Highest Rated</option>
+            <option value="name" className="bg-gray-900">
+              Sort by Name
+            </option>
+            <option value="price-low" className="bg-gray-900">
+              Price: Low to High
+            </option>
+            <option value="price-high" className="bg-gray-900">
+              Price: High to Low
+            </option>
+            <option value="rating" className="bg-gray-900">
+              Highest Rated
+            </option>
           </select>
         </div>
       </div>

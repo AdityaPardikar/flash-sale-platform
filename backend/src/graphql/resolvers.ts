@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * GraphQL Resolvers
  * Week 5 Day 4: API Enhancement & GraphQL
@@ -20,27 +21,27 @@ const queueService = new QueueService();
 
 // DataLoader factory for batching
 export const createDataLoaders = () => ({
-  productLoader: new DataLoader<string, any>(async (ids) => {
+  productLoader: new DataLoader<string, unknown>(async (ids) => {
     const products = await Promise.all(ids.map((id) => productService.getProductById(id)));
     return products;
   }),
 
-  flashSaleLoader: new DataLoader<string, any>(async (ids) => {
+  flashSaleLoader: new DataLoader<string, unknown>(async (ids) => {
     const sales = await Promise.all(ids.map((id) => flashSaleService.getFlashSaleById(id)));
     return sales;
   }),
 });
 
 // Authentication check
-function requireAuth(context: any) {
+function requireAuth(context: Record<string, unknown>) {
   if (!context.user) {
     throw new Error('Authentication required');
   }
-  return context.user;
+  return context.user as { id: string; isAdmin?: boolean };
 }
 
 // Admin check
-function requireAdmin(context: any) {
+function requireAdmin(context: Record<string, unknown>) {
   const user = requireAuth(context);
   if (!user.isAdmin) {
     throw new Error('Admin privileges required');
@@ -57,9 +58,15 @@ export const resolvers = {
       return value;
     },
     parseValue: (value: string) => new Date(value),
-    parseLiteral: (ast: any) => {
-      if (ast.kind === 'StringValue') {
-        return new Date(ast.value);
+    parseLiteral: (ast: unknown) => {
+      if (
+        typeof ast === 'object' &&
+        ast !== null &&
+        'kind' in ast &&
+        (ast as { kind: string }).kind === 'StringValue' &&
+        'value' in ast
+      ) {
+        return new Date((ast as { value: string }).value);
       }
       return null;
     },

@@ -9,9 +9,9 @@ const DB_NAME = 'FlashSalePWA';
 const DB_VERSION = 1;
 
 interface DBSchema {
-  products: { id: string; data: any; updatedAt: number };
-  flashSales: { id: string; data: any; updatedAt: number };
-  cart: { key: string; items: any[]; userId?: string };
+  products: { id: string; data: Record<string, unknown>; updatedAt: number };
+  flashSales: { id: string; data: Record<string, unknown>; updatedAt: number };
+  cart: { key: string; items: Record<string, unknown>[]; userId?: string };
   pendingActions: {
     id?: number;
     type: string;
@@ -21,7 +21,7 @@ interface DBSchema {
     body: string;
     timestamp: number;
   };
-  userPreferences: { key: string; value: any };
+  userPreferences: { key: string; value: unknown };
 }
 
 type StoreName = keyof DBSchema;
@@ -94,7 +94,7 @@ class OfflineStorage {
    */
   async get<T extends StoreName>(
     storeName: T,
-    key: string | number
+    key: string | number,
   ): Promise<DBSchema[T] | undefined> {
     const db = await this.openDB();
 
@@ -177,19 +177,19 @@ class OfflineStorage {
   /**
    * Cache products for offline access
    */
-  async cacheProducts(products: any[]): Promise<void> {
+  async cacheProducts(products: Record<string, unknown>[]): Promise<void> {
     const timestamp = Date.now();
     await Promise.all(
       products.map((product) =>
-        this.put('products', { id: product.id, data: product, updatedAt: timestamp })
-      )
+        this.put('products', { id: String(product.id), data: product, updatedAt: timestamp }),
+      ),
     );
   }
 
   /**
    * Get cached products
    */
-  async getCachedProducts(): Promise<any[]> {
+  async getCachedProducts(): Promise<Record<string, unknown>[]> {
     const items = await this.getAll('products');
     return items.map((item) => item.data);
   }
@@ -197,17 +197,19 @@ class OfflineStorage {
   /**
    * Cache flash sales
    */
-  async cacheFlashSales(sales: any[]): Promise<void> {
+  async cacheFlashSales(sales: Record<string, unknown>[]): Promise<void> {
     const timestamp = Date.now();
     await Promise.all(
-      sales.map((sale) => this.put('flashSales', { id: sale.id, data: sale, updatedAt: timestamp }))
+      sales.map((sale) =>
+        this.put('flashSales', { id: String(sale.id), data: sale, updatedAt: timestamp }),
+      ),
     );
   }
 
   /**
    * Get cached flash sales
    */
-  async getCachedFlashSales(): Promise<any[]> {
+  async getCachedFlashSales(): Promise<Record<string, unknown>[]> {
     const items = await this.getAll('flashSales');
     return items.map((item) => item.data);
   }
@@ -215,14 +217,14 @@ class OfflineStorage {
   /**
    * Save cart for offline access
    */
-  async saveCart(items: any[], userId?: string): Promise<void> {
+  async saveCart(items: Record<string, unknown>[], userId?: string): Promise<void> {
     await this.put('cart', { key: 'current', items, userId });
   }
 
   /**
    * Get offline cart
    */
-  async getCart(): Promise<any[] | null> {
+  async getCart(): Promise<Record<string, unknown>[] | null> {
     const cart = await this.get('cart', 'current');
     return cart?.items || null;
   }
@@ -239,7 +241,10 @@ class OfflineStorage {
     // Request background sync if available
     if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
       const registration = await navigator.serviceWorker.ready;
-      await (registration as any).sync.register('sync-queue-actions');
+      // Background Sync API not fully typed in TS lib
+      (
+        registration as unknown as { sync: { register: (tag: string) => Promise<void> } }
+      ).sync.register('sync-queue-actions');
     }
   }
 
@@ -253,16 +258,16 @@ class OfflineStorage {
   /**
    * Set user preference
    */
-  async setPreference(key: string, value: any): Promise<void> {
+  async setPreference(key: string, value: unknown): Promise<void> {
     await this.put('userPreferences', { key, value });
   }
 
   /**
    * Get user preference
    */
-  async getPreference<T = any>(key: string): Promise<T | undefined> {
+  async getPreference<T = unknown>(key: string): Promise<T | undefined> {
     const pref = await this.get('userPreferences', key);
-    return pref?.value;
+    return pref?.value as T | undefined;
   }
 
   /**

@@ -1,7 +1,11 @@
 /**
  * Bot Simulation Controller
  * Simulates thousands of concurrent users for flash sale demonstrations
+ *
+ * Console statements are intentional for simulation debugging
  */
+
+/* eslint-disable no-console */
 
 interface BotUser {
   id: string;
@@ -39,12 +43,21 @@ class BotSimulator {
     serverResponseTime: 23,
     inventoryRemaining: 100,
   };
-  
+
   private readonly API_BASE_URL = 'http://localhost:3000/api/v1';
   private readonly locations = [
-    'New York, US', 'London, UK', 'Tokyo, JP', 'Mumbai, IN', 
-    'São Paulo, BR', 'Sydney, AU', 'Paris, FR', 'Berlin, DE',
-    'Toronto, CA', 'Seoul, KR', 'Singapore, SG', 'Dubai, AE'
+    'New York, US',
+    'London, UK',
+    'Tokyo, JP',
+    'Mumbai, IN',
+    'São Paulo, BR',
+    'Sydney, AU',
+    'Paris, FR',
+    'Berlin, DE',
+    'Toronto, CA',
+    'Seoul, KR',
+    'Singapore, SG',
+    'Dubai, AE',
   ];
 
   /**
@@ -58,14 +71,14 @@ class BotSimulator {
   }): Promise<void> {
     this.isRunning = true;
     this.metrics.totalBots = config.totalBots;
-    
+
     console.log(`🤖 Starting bot simulation: ${config.totalBots} bots for sale ${config.saleId}`);
-    
+
     // Add real user first if provided
     if (config.realUser) {
       await this.addRealUser(config.realUser, config.saleId);
     }
-    
+
     // Spawn bots in waves to simulate realistic traffic
     let spawnedBots = 0;
     const spawnInterval = setInterval(async () => {
@@ -73,17 +86,17 @@ class BotSimulator {
         clearInterval(spawnInterval);
         return;
       }
-      
+
       // Spawn batch of bots
       const batchSize = Math.min(config.spawnRate, config.totalBots - spawnedBots);
       for (let i = 0; i < batchSize; i++) {
         await this.spawnBot(config.saleId);
         spawnedBots++;
       }
-      
+
       this.updateMetrics();
     }, 1000);
-    
+
     // Start processing queue
     this.processQueue();
   }
@@ -103,7 +116,7 @@ class BotSimulator {
           userName: user.name,
         }),
       });
-      
+
       const result = await response.json();
       console.log(`✅ Real user ${user.name} joined queue at position:`, result.position);
     } catch (error) {
@@ -126,9 +139,9 @@ class BotSimulator {
       location: this.locations[Math.floor(Math.random() * this.locations.length)],
       device: Math.random() > 0.6 ? 'mobile' : 'desktop',
     };
-    
+
     this.bots.set(botId, bot);
-    
+
     // Add realistic delay to simulate network latency
     const delay = Math.random() * 100 + 50; // 50-150ms
     setTimeout(async () => {
@@ -151,7 +164,7 @@ class BotSimulator {
           userName: bot.name,
         }),
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         bot.position = result.position;
@@ -173,22 +186,21 @@ class BotSimulator {
   private processQueue(): void {
     setInterval(() => {
       if (!this.isRunning) return;
-      
+
       // Simulate queue processing - move bots forward
-      const queuingBots = Array.from(this.bots.values()).filter(b => b.status === 'queuing');
-      
+      const queuingBots = Array.from(this.bots.values()).filter((b) => b.status === 'queuing');
+
       // Sort by join time (FIFO)
       queuingBots.sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
-      
+
       // Process ready bots (position <= 3)
-      queuingBots.forEach((bot, index) => {
+      queuingBots.forEach((bot, _index) => {
         bot.position = Math.max(1, bot.position - Math.floor(Math.random() * 2)); // Random queue movement
-        
+
         if (bot.position <= 3 && this.metrics.inventoryRemaining > 0) {
           this.simulatePurchase(bot);
         }
       });
-      
     }, 2000); // Process every 2 seconds
   }
 
@@ -197,25 +209,27 @@ class BotSimulator {
    */
   private async simulatePurchase(bot: BotUser): Promise<void> {
     if (bot.status !== 'queuing') return;
-    
+
     bot.status = 'purchasing';
-    
+
     // Simulate purchase delay (checkout process)
     const purchaseDelay = Math.random() * 3000 + 1000; // 1-4 seconds
-    
+
     setTimeout(async () => {
       try {
         // Simulate purchase attempt
         const success = Math.random() > 0.1; // 90% success rate
-        
+
         if (success && this.metrics.inventoryRemaining > 0) {
           bot.status = 'completed';
           bot.purchaseTime = new Date();
           this.metrics.completedPurchases++;
           this.metrics.inventoryRemaining--;
           this.metrics.activeQueue--;
-          
-          console.log(`✅ Bot ${bot.name} completed purchase! Inventory: ${this.metrics.inventoryRemaining}`);
+
+          console.log(
+            `✅ Bot ${bot.name} completed purchase! Inventory: ${this.metrics.inventoryRemaining}`,
+          );
         } else {
           bot.status = 'failed';
           this.metrics.failedAttempts++;
@@ -234,18 +248,46 @@ class BotSimulator {
    */
   private generateBotName(): string {
     const firstNames = [
-      'Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Jamie', 'Quinn',
-      'Avery', 'Blake', 'Drew', 'Reese', 'Sage', 'River', 'Phoenix', 'Skyler'
+      'Alex',
+      'Jordan',
+      'Taylor',
+      'Morgan',
+      'Casey',
+      'Riley',
+      'Jamie',
+      'Quinn',
+      'Avery',
+      'Blake',
+      'Drew',
+      'Reese',
+      'Sage',
+      'River',
+      'Phoenix',
+      'Skyler',
     ];
     const lastNames = [
-      'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
-      'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas'
+      'Smith',
+      'Johnson',
+      'Williams',
+      'Brown',
+      'Jones',
+      'Garcia',
+      'Miller',
+      'Davis',
+      'Rodriguez',
+      'Martinez',
+      'Hernandez',
+      'Lopez',
+      'Gonzalez',
+      'Wilson',
+      'Anderson',
+      'Thomas',
     ];
-    
+
     const first = firstNames[Math.floor(Math.random() * firstNames.length)];
     const last = lastNames[Math.floor(Math.random() * lastNames.length)];
     const number = Math.floor(Math.random() * 999);
-    
+
     return `${first} ${last}${number}`;
   }
 
@@ -253,18 +295,18 @@ class BotSimulator {
    * Update simulation metrics
    */
   private updateMetrics(): void {
-    const totalBots = this.bots.size;
-    const completedBots = Array.from(this.bots.values()).filter(b => b.status === 'completed');
-    
+    const completedBots = Array.from(this.bots.values()).filter((b) => b.status === 'completed');
+
     if (completedBots.length > 0) {
       const totalWaitTime = completedBots.reduce((sum, bot) => {
-        const waitTime = (bot.purchaseTime!.getTime() - bot.joinedAt.getTime()) / 1000;
+        const waitTime =
+          ((bot.purchaseTime?.getTime() ?? bot.joinedAt.getTime()) - bot.joinedAt.getTime()) / 1000;
         return sum + waitTime;
       }, 0);
-      
+
       this.metrics.averageWaitTime = Math.round(totalWaitTime / completedBots.length);
     }
-    
+
     // Simulate API metrics
     this.metrics.apiRequestsPerSecond = Math.floor(Math.random() * 5000) + 10000;
     this.metrics.serverResponseTime = Math.floor(Math.random() * 20) + 15;
@@ -282,11 +324,11 @@ class BotSimulator {
    */
   getBotStats(): { [status: string]: number } {
     const stats = { queuing: 0, purchasing: 0, completed: 0, failed: 0 };
-    
-    this.bots.forEach(bot => {
+
+    this.bots.forEach((bot) => {
       stats[bot.status]++;
     });
-    
+
     return stats;
   }
 
@@ -295,10 +337,10 @@ class BotSimulator {
    */
   getQueueState(): Array<{ position: number; name: string; device: string; location: string }> {
     return Array.from(this.bots.values())
-      .filter(bot => bot.status === 'queuing')
+      .filter((bot) => bot.status === 'queuing')
       .sort((a, b) => a.position - b.position)
       .slice(0, 50) // Top 50 in queue
-      .map(bot => ({
+      .map((bot) => ({
         position: bot.position,
         name: bot.name,
         device: bot.device,

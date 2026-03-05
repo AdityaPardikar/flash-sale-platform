@@ -107,7 +107,7 @@ class PredictiveAnalyticsService {
    */
   async generateSalesForecast(
     days: number = 7,
-    period: 'daily' | 'weekly' | 'monthly' = 'daily'
+    period: 'daily' | 'weekly' | 'monthly' = 'daily',
   ): Promise<SalesForecast> {
     const cacheKey = `${REDIS_KEYS.ANALYTICS_PREFIX}:forecast:${period}:${days}`;
 
@@ -128,7 +128,7 @@ class PredictiveAnalyticsService {
          FROM orders
          WHERE created_at > NOW() - INTERVAL '90 days'
          GROUP BY DATE(created_at)
-         ORDER BY date ASC`
+         ORDER BY date ASC`,
       );
 
       // Calculate baseline metrics
@@ -204,7 +204,7 @@ class PredictiveAnalyticsService {
       // Get current inventory
       const inventoryResult = await pool.query(
         'SELECT quantity FROM inventory WHERE product_id = $1',
-        [productId]
+        [productId],
       );
       const currentStock = inventoryResult.rows[0]?.quantity || 0;
 
@@ -215,7 +215,7 @@ class PredictiveAnalyticsService {
          JOIN orders o ON oi.order_id = o.id
          WHERE product_id = $1 AND o.created_at > NOW() - INTERVAL '30 days'
          GROUP BY DATE(created_at)`,
-        [productId]
+        [productId],
       );
 
       // Calculate daily demand
@@ -300,7 +300,7 @@ class PredictiveAnalyticsService {
            (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as order_count,
            (SELECT SUM(total_amount) FROM orders WHERE user_id = u.id) as total_spent
          FROM users u WHERE u.id = $1`,
-        [userId]
+        [userId],
       );
 
       if (userResult.rows.length === 0) {
@@ -335,7 +335,7 @@ class PredictiveAnalyticsService {
 
       // Order frequency
       const accountAgeDays = Math.floor(
-        (Date.now() - new Date(userData.signup_date).getTime()) / (1000 * 60 * 60 * 24)
+        (Date.now() - new Date(userData.signup_date).getTime()) / (1000 * 60 * 60 * 24),
       );
       const orderFrequency = accountAgeDays > 0 ? orderCount / (accountAgeDays / 30) : 0;
 
@@ -407,7 +407,7 @@ class PredictiveAnalyticsService {
          LEFT JOIN orders o ON u.id = o.user_id
          WHERE u.id = $1
          GROUP BY u.id, u.created_at`,
-        [userId]
+        [userId],
       );
 
       if (userMetrics.rows.length === 0) {
@@ -423,15 +423,15 @@ class PredictiveAnalyticsService {
       const accountAgeMonths = Math.max(
         1,
         Math.floor(
-          (Date.now() - new Date(metrics.signup_date).getTime()) / (1000 * 60 * 60 * 24 * 30)
-        )
+          (Date.now() - new Date(metrics.signup_date).getTime()) / (1000 * 60 * 60 * 24 * 30),
+        ),
       );
 
       // Predict future orders (simplified model)
       const purchaseFrequency = orderCount / accountAgeMonths;
       const expectedLifespanMonths = 24; // Assume 2 year average customer lifespan
       const expectedFutureOrders = Math.round(
-        purchaseFrequency * (expectedLifespanMonths - accountAgeMonths)
+        purchaseFrequency * (expectedLifespanMonths - accountAgeMonths),
       );
 
       // Calculate predicted LTV
@@ -477,7 +477,7 @@ class PredictiveAnalyticsService {
     productId: string,
     discountPercent: number,
     durationHours: number,
-    quantity: number
+    quantity: number,
   ): Promise<FlashSalePrediction> {
     try {
       const pool = getPool();
@@ -485,7 +485,7 @@ class PredictiveAnalyticsService {
       // Get product info
       const productResult = await pool.query(
         `SELECT name, price, category FROM products WHERE id = $1`,
-        [productId]
+        [productId],
       );
 
       if (productResult.rows.length === 0) {
@@ -503,7 +503,7 @@ class PredictiveAnalyticsService {
          FROM flash_sales fs
          JOIN products p ON fs.product_id = p.id
          WHERE p.category = $1 AND fs.status = 'completed'`,
-        [product.category]
+        [product.category],
       );
 
       const historical = historicalResult.rows[0];
@@ -523,10 +523,10 @@ class PredictiveAnalyticsService {
       const predictedRevenue = predictedUnitsSold * salePrice;
 
       // Calculate optimal discount
-      const elasticity = -1.5;
+      // const _elasticity = -1.5; // Reserved for future price elasticity calculations
       const optimalDiscount = Math.min(
         70,
-        Math.max(10, Math.round(20 + (product.price > 100 ? 10 : 0) + (quantity > 100 ? 5 : 0)))
+        Math.max(10, Math.round(20 + (product.price > 100 ? 10 : 0) + (quantity > 100 ? 5 : 0))),
       );
 
       // Identify risk factors
@@ -573,7 +573,7 @@ class PredictiveAnalyticsService {
            COUNT(DISTINCT user_id) as total_customers,
            COALESCE(AVG(total_amount), 0) as avg_order_value
          FROM orders
-         WHERE created_at > NOW() - INTERVAL '30 days'`
+         WHERE created_at > NOW() - INTERVAL '30 days'`,
       );
 
       const overview = overviewResult.rows[0];
@@ -591,7 +591,7 @@ class PredictiveAnalyticsService {
 
       // Get risk counts
       const inventoryResult = await pool.query(
-        `SELECT COUNT(*) as count FROM inventory WHERE quantity < 10`
+        `SELECT COUNT(*) as count FROM inventory WHERE quantity < 10`,
       );
       const inventoryAlerts = parseInt(inventoryResult.rows[0]?.count) || 0;
 
@@ -646,26 +646,31 @@ class PredictiveAnalyticsService {
 
   // Private helper methods
 
-  private calculateTrend(data: any[]): number {
+  private calculateTrend(data: unknown[]): number {
     if (data.length < 2) return 0;
 
     // Simple linear regression
     const n = data.length;
     const xMean = (n - 1) / 2;
-    const yMean = data.reduce((sum, d) => sum + parseFloat(d.revenue || '0'), 0) / n;
+    const yMean =
+      (data.reduce(
+        (sum: number, d) => sum + parseFloat((d as Record<string, string>).revenue || '0'),
+        0,
+      ) as number) / n;
 
     let numerator = 0;
     let denominator = 0;
 
     for (let i = 0; i < n; i++) {
-      numerator += (i - xMean) * (parseFloat(data[i].revenue || '0') - yMean);
+      numerator +=
+        (i - xMean) * (parseFloat((data[i] as Record<string, string>).revenue || '0') - yMean);
       denominator += (i - xMean) ** 2;
     }
 
     return denominator === 0 ? 0 : numerator / denominator / yMean;
   }
 
-  private calculateSeasonality(data: any[]): SeasonalityFactor[] {
+  private calculateSeasonality(_data: unknown[]): SeasonalityFactor[] {
     const factors: SeasonalityFactor[] = [];
 
     // Day of week seasonality

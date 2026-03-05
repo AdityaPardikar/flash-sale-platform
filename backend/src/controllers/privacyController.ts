@@ -18,7 +18,7 @@ export const privacyController = {
    */
   async getConsents(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -41,7 +41,7 @@ export const privacyController = {
    */
   async updateConsent(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       const { type, granted } = req.body;
 
       if (!userId) {
@@ -78,7 +78,7 @@ export const privacyController = {
    */
   async withdrawAllConsents(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -102,7 +102,7 @@ export const privacyController = {
    */
   async requestDataExport(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -127,7 +127,7 @@ export const privacyController = {
    */
   async getExportStatus(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       const { exportId } = req.params;
 
       if (!userId) {
@@ -152,7 +152,7 @@ export const privacyController = {
    */
   async listExports(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -172,7 +172,7 @@ export const privacyController = {
    */
   async downloadExport(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       const { exportId } = req.params;
 
       if (!userId) {
@@ -204,7 +204,7 @@ export const privacyController = {
    */
   async requestDeletion(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       const { confirmation } = req.body;
 
       if (!userId) {
@@ -238,7 +238,7 @@ export const privacyController = {
    */
   async getDeletionStatus(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -265,7 +265,7 @@ export const privacyController = {
    */
   async getPrivacyReport(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });

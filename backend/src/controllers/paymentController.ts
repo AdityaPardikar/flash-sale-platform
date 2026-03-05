@@ -7,7 +7,7 @@
 
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import paymentService, { PaymentStatus } from '../services/paymentService';
+import paymentService from '../services/paymentService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
 
@@ -18,7 +18,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 export const createPaymentIntent = async (req: Request, res: Response): Promise<void> => {
   try {
     const { orderId, amount, currency, metadata } = req.body;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ success: false, error: 'Authentication required' });
@@ -86,7 +86,7 @@ export const confirmPayment = async (req: Request, res: Response): Promise<void>
 export const processRefund = async (req: Request, res: Response): Promise<void> => {
   try {
     const { paymentId, amount, reason } = req.body;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ success: false, error: 'Authentication required' });
@@ -131,7 +131,7 @@ export const processRefund = async (req: Request, res: Response): Promise<void> 
 export const getPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { paymentId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     const payment = await paymentService.getPayment(paymentId);
 
@@ -165,7 +165,7 @@ export const getPayment = async (req: Request, res: Response): Promise<void> => 
  */
 export const getPaymentHistory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     const { limit = 10, offset = 0 } = req.query;
 
     if (!userId) {
@@ -176,7 +176,7 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
     const payments = await paymentService.getUserPayments(
       userId,
       parseInt(limit as string),
-      parseInt(offset as string)
+      parseInt(offset as string),
     );
 
     res.json({
@@ -200,7 +200,7 @@ export const retryPayment = async (req: Request, res: Response): Promise<void> =
   try {
     const { paymentId } = req.params;
     const { paymentMethodId } = req.body;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     // Verify user owns the payment
     const payment = await paymentService.getPayment(paymentId);
@@ -271,7 +271,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
  */
 export const getPaymentMethods = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ success: false, error: 'Authentication required' });

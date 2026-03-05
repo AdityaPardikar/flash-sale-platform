@@ -30,7 +30,7 @@ function generateKey(req: Request, config: RateLimitConfig): string {
       return `${prefix}:ip:${ip}:${path}`;
     
     case 'user':
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         const fallbackIp = req.ip || req.socket.remoteAddress || 'unknown';
         return `${prefix}:ip:${fallbackIp}:${path}`;
@@ -39,7 +39,7 @@ function generateKey(req: Request, config: RateLimitConfig): string {
     
     case 'combined':
     default:
-      const combUserId = (req as any).user?.id;
+      const combUserId = req.user?.id;
       const combIp = req.ip || req.socket.remoteAddress || 'unknown';
       if (combUserId) {
         return `${prefix}:combined:${combUserId}:${combIp}:${path}`;
@@ -54,7 +54,7 @@ function generateKey(req: Request, config: RateLimitConfig): string {
 function shouldSkipForAdmin(req: Request, config: RateLimitConfig): boolean {
   if (!config.skipAdmin) return false;
   
-  const user = (req as any).user;
+  const user = req.user;
   return user?.role === 'admin' || user?.isAdmin === true;
 }
 
@@ -120,7 +120,7 @@ export function rateLimiter(configName?: string) {
         logger.warn('Rate limit exceeded', {
           key,
           ip: req.ip,
-          userId: (req as any).user?.id,
+          userId: req.user?.id,
           path: req.path,
           count: info.count,
           limit: config.maxRequests,

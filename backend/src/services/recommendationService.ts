@@ -13,6 +13,7 @@
 
 import { getPool } from '../utils/database';
 import { redisClient, isRedisConnected } from '../utils/redis';
+import { logger } from '../utils/logger';
 import { REDIS_KEYS } from '../config/redisKeys';
 
 // Types
@@ -84,7 +85,7 @@ class RecommendationService {
       await pool.query(
         `INSERT INTO user_behaviors (user_id, product_id, action, session_id, metadata, created_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [userId, productId, action, sessionId, JSON.stringify(metadata || {}), timestamp]
+        [userId, productId, action, sessionId, JSON.stringify(metadata || {}), timestamp],
       );
 
       // Update Redis for real-time recommendations
@@ -94,7 +95,7 @@ class RecommendationService {
         await redisClient.zadd(
           userActionsKey,
           Date.now(),
-          JSON.stringify({ productId, action, weight: ACTION_WEIGHTS[action] })
+          JSON.stringify({ productId, action, weight: ACTION_WEIGHTS[action] }),
         );
         await redisClient.expire(userActionsKey, BEHAVIOR_CACHE_TTL);
 
@@ -107,9 +108,9 @@ class RecommendationService {
         await redisClient.del(`${REDIS_KEYS.RECOMMENDATION_PREFIX}:user:${userId}:recommendations`);
       }
 
-      console.log(`📊 Tracked behavior: ${action} for product ${productId} by user ${userId}`);
+      logger.info(`📊 Tracked behavior: ${action} for product ${productId} by user ${userId}`);
     } catch (error) {
-      console.error('Failed to track behavior:', error);
+      logger.error('Failed to track behavior:', error);
       throw error;
     }
   }
@@ -119,7 +120,7 @@ class RecommendationService {
    */
   async getRecommendations(
     userId: string,
-    config: Partial<RecommendationConfig> = {}
+    config: Partial<RecommendationConfig> = {},
   ): Promise<Recommendation[]> {
     const finalConfig = { ...this.defaultConfig, ...config };
 
@@ -127,7 +128,7 @@ class RecommendationService {
       // Check cache first
       if (isRedisConnected()) {
         const cached = await redisClient.get(
-          `${REDIS_KEYS.RECOMMENDATION_PREFIX}:user:${userId}:recommendations`
+          `${REDIS_KEYS.RECOMMENDATION_PREFIX}:user:${userId}:recommendations`,
         );
         if (cached) {
           return JSON.parse(cached);
@@ -164,13 +165,13 @@ class RecommendationService {
         await redisClient.setex(
           `${REDIS_KEYS.RECOMMENDATION_PREFIX}:user:${userId}:recommendations`,
           RECOMMENDATION_CACHE_TTL,
-          JSON.stringify(final)
+          JSON.stringify(final),
         );
       }
 
       return final;
     } catch (error) {
-      console.error('Failed to get recommendations:', error);
+      logger.error('Failed to get recommendations:', error);
       // Return popular products as fallback
       return this.getPopularProducts(finalConfig.maxRecommendations);
     }
@@ -184,7 +185,7 @@ class RecommendationService {
       // Check cache
       if (isRedisConnected()) {
         const cached = await redisClient.get(
-          `${REDIS_KEYS.RECOMMENDATION_PREFIX}:product:${productId}:similar`
+          `${REDIS_KEYS.RECOMMENDATION_PREFIX}:product:${productId}:similar`,
         );
         if (cached) {
           return JSON.parse(cached);
@@ -196,7 +197,7 @@ class RecommendationService {
       // Get product details for content-based similarity
       const productResult = await pool.query(
         'SELECT category, tags, price FROM products WHERE id = $1',
-        [productId]
+        [productId],
       );
 
       if (productResult.rows.length === 0) {
@@ -220,7 +221,7 @@ class RecommendationService {
          WHERE p.id != $3 AND p.is_active = true
          ORDER BY score DESC, RANDOM()
          LIMIT $4`,
-        [product.category, product.price, productId, limit]
+        [product.category, product.price, productId, limit],
       );
 
       const recommendations: Recommendation[] = similarResult.rows.map((row) => ({
@@ -238,13 +239,13 @@ class RecommendationService {
         await redisClient.setex(
           `${REDIS_KEYS.RECOMMENDATION_PREFIX}:product:${productId}:similar`,
           RECOMMENDATION_CACHE_TTL,
-          JSON.stringify(recommendations)
+          JSON.stringify(recommendations),
         );
       }
 
       return recommendations;
     } catch (error) {
-      console.error('Failed to get similar products:', error);
+      logger.error('Failed to get similar products:', error);
       return [];
     }
   }
@@ -273,7 +274,7 @@ class RecommendationService {
          GROUP BY p.id
          ORDER BY engagement_score DESC, unique_users DESC
          LIMIT $1`,
-        [limit]
+        [limit],
       );
 
       return result.rows.map((row) => ({
@@ -286,7 +287,7 @@ class RecommendationService {
         algorithm: 'trending',
       }));
     } catch (error) {
-      console.error('Failed to get trending products:', error);
+      logger.error('Failed to get trending products:', error);
       return [];
     }
   }
@@ -315,7 +316,7 @@ class RecommendationService {
          GROUP BY p.id
          ORDER BY co_purchase_count DESC
          LIMIT $2`,
-        [productId, limit]
+        [productId, limit],
       );
 
       return result.rows.map((row) => ({
@@ -328,7 +329,7 @@ class RecommendationService {
         algorithm: 'collaborative',
       }));
     } catch (error) {
-      console.error('Failed to get frequently bought together:', error);
+      logger.error('Failed to get frequently bought together:', error);
       return [];
     }
   }
@@ -338,7 +339,7 @@ class RecommendationService {
    */
   async getABTestRecommendations(
     userId: string,
-    testId: string
+    testId: string,
   ): Promise<{ variant: string; recommendations: Recommendation[] }> {
     // Simple A/B test assignment based on user ID hash
     const hash = userId.split('').reduce((a, b) => (a << 5) - a + b.charCodeAt(0), 0);
@@ -358,7 +359,7 @@ class RecommendationService {
     }
 
     // Log A/B test assignment
-    console.log(`🧪 A/B Test ${testId}: User ${userId} assigned to variant ${variant}`);
+    logger.info(`🧪 A/B Test ${testId}: User ${userId} assigned to variant ${variant}`);
 
     return { variant, recommendations };
   }
@@ -373,7 +374,7 @@ class RecommendationService {
        WHERE user_id = $1
        ORDER BY created_at DESC
        LIMIT 100`,
-      [userId]
+      [userId],
     );
 
     return result.rows.map((row) => ({
@@ -386,7 +387,7 @@ class RecommendationService {
 
   private async collaborativeFiltering(
     userId: string,
-    userHistory: UserBehavior[]
+    userHistory: UserBehavior[],
   ): Promise<Recommendation[]> {
     if (userHistory.length === 0) {
       return this.getPopularProducts(10);
@@ -416,7 +417,7 @@ class RecommendationService {
        GROUP BY p.id
        ORDER BY total_overlap DESC
        LIMIT 20`,
-      [viewedProducts, userId]
+      [viewedProducts, userId],
     );
 
     return result.rows.map((row) => ({
@@ -432,7 +433,7 @@ class RecommendationService {
 
   private async contentBasedFiltering(
     userId: string,
-    userHistory: UserBehavior[]
+    userHistory: UserBehavior[],
   ): Promise<Recommendation[]> {
     if (userHistory.length === 0) {
       return [];
@@ -459,7 +460,7 @@ class RecommendationService {
          AND p.price BETWEEN up.avg_price * 0.5 AND up.avg_price * 2
        ORDER BY RANDOM()
        LIMIT 20`,
-      [viewedProducts]
+      [viewedProducts],
     );
 
     return result.rows.map((row) => ({
@@ -475,7 +476,7 @@ class RecommendationService {
 
   private rankRecommendations(
     recommendations: Recommendation[],
-    config: RecommendationConfig
+    _config: RecommendationConfig,
   ): Recommendation[] {
     // Combine scores from different algorithms
     const productScores = new Map<string, { rec: Recommendation; score: number; count: number }>();
@@ -503,7 +504,7 @@ class RecommendationService {
 
   private applyDiversity(
     recommendations: Recommendation[],
-    diversityFactor: number
+    diversityFactor: number,
   ): Recommendation[] {
     if (diversityFactor === 0 || recommendations.length <= 2) {
       return recommendations;
@@ -512,7 +513,6 @@ class RecommendationService {
     // Simple diversity: re-order to spread out similar items
     const result: Recommendation[] = [];
     const remaining = [...recommendations];
-    const usedCategories = new Set<string>();
 
     while (remaining.length > 0 && result.length < recommendations.length) {
       // Pick items that add diversity
@@ -538,7 +538,7 @@ class RecommendationService {
        WHERE p.is_active = true
        ORDER BY p.created_at DESC
        LIMIT $1`,
-      [limit]
+      [limit],
     );
 
     return result.rows.map((row) => ({

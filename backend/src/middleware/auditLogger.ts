@@ -11,6 +11,16 @@ import { removeSensitiveFields } from '../utils/sanitizer';
 import { logger } from '../utils/logger';
 
 /**
+ * Response payload type for audit logging
+ */
+interface AuditResponsePayload {
+  error?: string;
+  message?: string;
+  id?: string;
+  user?: { id?: string };
+}
+
+/**
  * Audit configuration for routes
  */
 interface AuditConfig {
@@ -27,18 +37,18 @@ interface AuditConfig {
 const auditRoutes = new Map<string, AuditConfig>();
 
 // Auth routes
-auditRoutes.set('POST:/api/auth/login', { 
-  action: AuditAction.USER_LOGIN, 
+auditRoutes.set('POST:/api/auth/login', {
+  action: AuditAction.USER_LOGIN,
   entityType: 'user',
   getEntityId: () => null,
   includeBody: false,
 });
-auditRoutes.set('POST:/api/auth/logout', { 
-  action: AuditAction.USER_LOGOUT, 
+auditRoutes.set('POST:/api/auth/logout', {
+  action: AuditAction.USER_LOGOUT,
   entityType: 'user',
 });
-auditRoutes.set('POST:/api/auth/register', { 
-  action: AuditAction.USER_CREATED, 
+auditRoutes.set('POST:/api/auth/register', {
+  action: AuditAction.USER_CREATED,
   entityType: 'user',
   includeBody: false,
 });
@@ -144,22 +154,20 @@ function matchRoute(method: string, path: string): AuditConfig | null {
   // Try exact match first
   const exactKey = `${method}:${path}`;
   if (auditRoutes.has(exactKey)) {
-    return auditRoutes.get(exactKey)!;
+    return auditRoutes.get(exactKey) ?? null;
   }
 
   // Try pattern matching for parameterized routes
   for (const [pattern, config] of auditRoutes.entries()) {
     const [patternMethod, patternPath] = pattern.split(':');
-    
+
     if (patternMethod !== method) continue;
-    
+
     // Convert route pattern to regex
-    const regexPattern = patternPath
-      .replace(/:[^/]+/g, '[^/]+')
-      .replace(/\//g, '\\/');
-    
+    const regexPattern = patternPath.replace(/:[^/]+/g, '[^/]+').replace(/\//g, '\\/');
+
     const regex = new RegExp(`^${regexPattern}$`);
-    
+
     if (regex.test(path)) {
       return config;
     }
@@ -175,7 +183,7 @@ function matchRoute(method: string, path: string): AuditConfig | null {
 export function auditLogger() {
   return async (req: Request, res: Response, next: NextFunction) => {
     const config = matchRoute(req.method, req.path);
-    
+
     if (!config) {
       return next();
     }
@@ -183,26 +191,30 @@ export function auditLogger() {
     // Store original end function
     const originalEnd = res.end;
     const originalJson = res.json;
-    
-    let responseBody: any;
+
+    let responseBody: AuditResponsePayload | undefined;
 
     // Override json to capture response
-    res.json = function(body: any) {
+    res.json = function (body: AuditResponsePayload) {
       responseBody = body;
       return originalJson.call(this, body);
     };
 
     // Override end to log after response
-    res.end = function(chunk?: any, encoding?: any, callback?: any) {
+    res.end = function (
+      chunk?: unknown,
+      encoding?: BufferEncoding | (() => void),
+      callback?: () => void,
+    ) {
       // Call original end first
       const result = originalEnd.call(this, chunk, encoding, callback);
 
       // Log asynchronously after response
       setImmediate(async () => {
         try {
-          const user = (req as any).user;
+          const user = req.user;
           const userId = user?.id;
-          
+
           if (!userId && config.action !== AuditAction.USER_LOGIN) {
             // Skip logging for unauthenticated requests (except login)
             return;
@@ -230,12 +242,10 @@ export function auditLogger() {
           }
 
           // Prepare changes object
-          let changes: Record<string, any> = {};
-          
+          let changes: Record<string, unknown> = {};
+
           if (config.includeBody && req.body) {
-            changes = config.includeSensitive 
-              ? { ...req.body }
-              : removeSensitiveFields(req.body);
+            changes = config.includeSensitive ? { ...req.body } : removeSensitiveFields(req.body);
           }
 
           // Add response data if available
@@ -277,10 +287,10 @@ export async function logAuditEvent(
   action: AuditAction | string,
   entityType: string,
   entityId: string | null,
-  changes?: Record<string, any>
+  changes?: Record<string, unknown>,
 ) {
-  const user = (req as any).user;
-  
+  const user = req.user;
+
   await auditLogService.logAction({
     userId: user?.id || 'anonymous',
     action,
@@ -298,22 +308,18 @@ export async function logAuditEvent(
 export function withAudit(
   action: AuditAction | string,
   entityType: string,
-  getEntityId?: (req: Request, result: any) => string | null
+  getEntityId?: (req: Request, result: AuditResponsePayload | undefined) => string | null,
 ) {
-  return function(
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (target: object, _propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function(req: Request, res: Response, next: NextFunction) {
+    descriptor.value = async function (req: Request, res: Response, next: NextFunction) {
       try {
         // Store original json
         const originalJson = res.json.bind(res);
-        let responseData: any;
+        let responseData: AuditResponsePayload | undefined;
 
-        res.json = function(data: any) {
+        res.json = function (data: AuditResponsePayload) {
           responseData = data;
           return originalJson(data);
         };
@@ -322,7 +328,7 @@ export function withAudit(
 
         // Log after successful response
         if (res.statusCode < 400) {
-          const user = (req as any).user;
+          const user = req.user;
           const entityId = getEntityId?.(req, responseData) || responseData?.id || null;
 
           await auditLogService.logAction({

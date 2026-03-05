@@ -1,13 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, TokenPayload } from '../utils/jwt';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: TokenPayload;
-    }
-  }
-}
+// Request type augmentation is in types/express.d.ts
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;

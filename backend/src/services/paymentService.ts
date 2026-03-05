@@ -11,9 +11,10 @@
  */
 
 import Stripe from 'stripe';
-import { getPool, QueryResult } from '../utils/database';
+import { getPool } from '../utils/database';
 import { redisClient, isRedisConnected } from '../utils/redis';
 import { REDIS_KEYS } from '../config/redisKeys';
+import { logger } from '../utils/logger';
 
 // Initialize Stripe with API key (use test key in development)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
@@ -115,7 +116,7 @@ class PaymentService {
           stripeIntent.id,
           PaymentMethod.CARD,
           JSON.stringify(metadata),
-        ]
+        ],
       );
 
       const paymentId = result.rows[0].id;
@@ -132,19 +133,19 @@ class PaymentService {
             amount,
             userId,
             orderId,
-          })
+          }),
         );
       }
 
-      console.log(`✅ Payment intent created: ${paymentId} for order ${orderId}`);
+      logger.info(`Payment intent created: ${paymentId} for order ${orderId}`);
 
       return {
-        clientSecret: stripeIntent.client_secret!,
+        clientSecret: stripeIntent.client_secret ?? '',
         paymentIntentId: stripeIntent.id,
         paymentId,
       };
     } catch (error) {
-      console.error('❌ Failed to create payment intent:', error);
+      logger.error('❌ Failed to create payment intent:', error);
       throw error;
     }
   }
@@ -167,7 +168,7 @@ class PaymentService {
          SET status = $1, updated_at = NOW()
          WHERE stripe_payment_intent_id = $2
          RETURNING *`,
-        [status, paymentIntentId]
+        [status, paymentIntentId],
       );
 
       if (result.rows.length === 0) {
@@ -181,7 +182,7 @@ class PaymentService {
         await redisClient.setex(
           `${REDIS_KEYS.PAYMENT_PREFIX}:${payment.id}`,
           3600,
-          JSON.stringify({ ...payment, status })
+          JSON.stringify({ ...payment, status }),
         );
       }
 
@@ -190,10 +191,10 @@ class PaymentService {
         await this.triggerOrderFulfillment(payment.orderId);
       }
 
-      console.log(`✅ Payment ${payment.id} confirmed with status: ${status}`);
+      logger.info(`✅ Payment ${payment.id} confirmed with status: ${status}`);
       return payment;
     } catch (error) {
-      console.error('❌ Failed to confirm payment:', error);
+      logger.error('❌ Failed to confirm payment:', error);
       throw error;
     }
   }
@@ -213,7 +214,7 @@ class PaymentService {
       const pool = getPool();
       const paymentResult = await pool.query<PaymentIntent>(
         'SELECT * FROM payments WHERE id = $1',
-        [paymentId]
+        [paymentId],
       );
 
       if (paymentResult.rows.length === 0) {
@@ -248,17 +249,17 @@ class PaymentService {
         `UPDATE payments 
          SET status = $1, updated_at = NOW()
          WHERE id = $2`,
-        [newStatus, paymentId]
+        [newStatus, paymentId],
       );
 
       // Record refund in database
       await pool.query(
         `INSERT INTO refunds (payment_id, stripe_refund_id, amount, reason, status)
          VALUES ($1, $2, $3, $4, $5)`,
-        [paymentId, refund.id, refundAmount / 100, reason, refund.status]
+        [paymentId, refund.id, refundAmount / 100, reason, refund.status],
       );
 
-      console.log(`✅ Refund processed: ${refund.id} for payment ${paymentId}`);
+      logger.info(`✅ Refund processed: ${refund.id} for payment ${paymentId}`);
 
       return {
         refundId: refund.id,
@@ -266,7 +267,7 @@ class PaymentService {
         amount: refundAmount / 100,
       };
     } catch (error) {
-      console.error('❌ Failed to process refund:', error);
+      logger.error('❌ Failed to process refund:', error);
       throw error;
     }
   }
@@ -275,7 +276,7 @@ class PaymentService {
    * Handle Stripe webhook events
    */
   async handleWebhook(event: Stripe.Event): Promise<void> {
-    console.log(`📨 Received webhook: ${event.type}`);
+    logger.info(`📨 Received webhook: ${event.type}`);
 
     switch (event.type) {
       case 'payment_intent.succeeded':
@@ -299,7 +300,7 @@ class PaymentService {
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        logger.info(`Unhandled event type: ${event.type}`);
     }
   }
 
@@ -334,7 +335,7 @@ class PaymentService {
        WHERE user_id = $1 
        ORDER BY created_at DESC 
        LIMIT $2 OFFSET $3`,
-      [userId, limit, offset]
+      [userId, limit, offset],
     );
 
     return result.rows;
@@ -347,7 +348,7 @@ class PaymentService {
     const pool = getPool();
     const result = await pool.query<PaymentIntent>(
       'SELECT * FROM payments WHERE order_id = $1 ORDER BY created_at DESC',
-      [orderId]
+      [orderId],
     );
 
     return result.rows;
@@ -358,7 +359,7 @@ class PaymentService {
    */
   async retryPayment(
     paymentId: string,
-    newPaymentMethodId?: string
+    newPaymentMethodId?: string,
   ): Promise<{
     success: boolean;
     clientSecret?: string;
@@ -389,7 +390,7 @@ class PaymentService {
         clientSecret: newIntent.clientSecret,
       };
     } catch (error) {
-      console.error('❌ Failed to retry payment:', error);
+      logger.error('❌ Failed to retry payment:', error);
       return { success: false, error: (error as Error).message };
     }
   }
@@ -415,7 +416,7 @@ class PaymentService {
       `UPDATE payments 
        SET status = $1, updated_at = NOW()
        WHERE stripe_payment_intent_id = $2`,
-      [PaymentStatus.SUCCEEDED, paymentIntent.id]
+      [PaymentStatus.SUCCEEDED, paymentIntent.id],
     );
 
     // Trigger order fulfillment
@@ -423,7 +424,7 @@ class PaymentService {
       await this.triggerOrderFulfillment(paymentIntent.metadata.orderId);
     }
 
-    console.log(`✅ Payment succeeded: ${paymentIntent.id}`);
+    logger.info(`✅ Payment succeeded: ${paymentIntent.id}`);
   }
 
   private async handlePaymentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
@@ -432,11 +433,11 @@ class PaymentService {
       `UPDATE payments 
        SET status = $1, updated_at = NOW()
        WHERE stripe_payment_intent_id = $2`,
-      [PaymentStatus.FAILED, paymentIntent.id]
+      [PaymentStatus.FAILED, paymentIntent.id],
     );
 
     // TODO: Send failure notification to user
-    console.log(`❌ Payment failed: ${paymentIntent.id}`);
+    logger.info(`❌ Payment failed: ${paymentIntent.id}`);
   }
 
   private async handlePaymentCanceled(paymentIntent: Stripe.PaymentIntent): Promise<void> {
@@ -445,10 +446,10 @@ class PaymentService {
       `UPDATE payments 
        SET status = $1, updated_at = NOW()
        WHERE stripe_payment_intent_id = $2`,
-      [PaymentStatus.CANCELLED, paymentIntent.id]
+      [PaymentStatus.CANCELLED, paymentIntent.id],
     );
 
-    console.log(`🚫 Payment canceled: ${paymentIntent.id}`);
+    logger.info(`🚫 Payment canceled: ${paymentIntent.id}`);
   }
 
   private async handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
@@ -463,15 +464,15 @@ class PaymentService {
       `UPDATE payments 
        SET status = $1, updated_at = NOW()
        WHERE stripe_payment_intent_id = $2`,
-      [status, charge.payment_intent]
+      [status, charge.payment_intent],
     );
 
-    console.log(`💰 Charge refunded: ${charge.id}`);
+    logger.info(`💰 Charge refunded: ${charge.id}`);
   }
 
   private async handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
     // Log dispute and notify admin
-    console.log(`⚠️ Dispute created: ${dispute.id} for charge ${dispute.charge}`);
+    logger.info(`⚠️ Dispute created: ${dispute.id} for charge ${dispute.charge}`);
 
     // TODO: Send admin notification
     // TODO: Store dispute in database
@@ -484,7 +485,7 @@ class PaymentService {
       orderId,
     ]);
 
-    console.log(`📦 Order fulfillment triggered for: ${orderId}`);
+    logger.info(`📦 Order fulfillment triggered for: ${orderId}`);
 
     // TODO: Send confirmation email
     // TODO: Notify inventory system

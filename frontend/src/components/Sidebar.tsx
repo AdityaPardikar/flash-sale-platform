@@ -1,27 +1,24 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { API } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const toast = useToast();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       const token = localStorage.getItem('adminAccessToken');
       if (token) {
-        await axios.post(
-          '/api/admin/auth/logout',
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await API.post('/admin/auth/logout');
       }
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (_err) {
+      // Logout should proceed even if API call fails
+      toast.warning('Session may not have been invalidated on server');
     } finally {
       // Clear local storage
       localStorage.removeItem('adminAccessToken');

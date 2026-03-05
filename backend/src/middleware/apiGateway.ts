@@ -12,7 +12,6 @@
 
 import { Request, Response, NextFunction, Router } from 'express';
 import { redisClient } from '../utils/redis';
-import { verifyToken } from '../utils/jwt';
 
 const router = Router();
 
@@ -26,6 +25,7 @@ interface RateLimitConfig {
   keyGenerator?: (req: Request) => string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface RateLimitInfo {
   remaining: number;
   total: number;
@@ -116,7 +116,7 @@ export function createRateLimiter(config: RateLimitConfig) {
 
 function getDefaultKey(req: Request): string {
   // Use user ID if authenticated, otherwise IP
-  const user = (req as any).user;
+  const user = req.user;
   if (user?.id) {
     return `user:${user.id}`;
   }
@@ -178,7 +178,7 @@ export const vipRateLimiter = createTieredRateLimiter({
   },
   defaultTier: 'STANDARD',
   tierResolver: async (req: Request) => {
-    const user = (req as any).user;
+    const user = req.user;
     if (!user?.id) return 'STANDARD';
 
     const vipData = await redisClient.get(`vip:membership:${user.id}`);
@@ -221,7 +221,10 @@ export function createCircuitBreaker(name: string, config: CircuitBreakerConfig)
   }
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    const circuit = circuitBreakers.get(name)!;
+    const circuit = circuitBreakers.get(name);
+    if (!circuit) {
+      return next();
+    }
     const now = Date.now();
 
     // Check circuit state
@@ -252,7 +255,7 @@ export function createCircuitBreaker(name: string, config: CircuitBreakerConfig)
 
     // Wrap response to track success/failure
     const originalJson = res.json.bind(res);
-    res.json = function (body: any) {
+    res.json = function (body: unknown) {
       if (res.statusCode >= 500) {
         recordFailure(circuit, failureThreshold, now);
       } else if (circuit.state === CircuitState.HALF_OPEN) {
@@ -270,7 +273,7 @@ export function createCircuitBreaker(name: string, config: CircuitBreakerConfig)
 function recordFailure(
   circuit: { state: CircuitState; failures: number; lastFailure: number },
   threshold: number,
-  now: number
+  now: number,
 ) {
   circuit.failures++;
   circuit.lastFailure = now;
@@ -340,11 +343,11 @@ export function apiKeyValidator(config: ApiKeyConfig = {}) {
       }
 
       // Attach key info to request
-      (req as any).apiKey = keyInfo;
+      (req as unknown as Record<string, unknown>).apiKey = keyInfo;
 
       // Track usage
       await redisClient.incr(
-        `${API_KEY_PREFIX}:usage:${apiKey}:${new Date().toISOString().split('T')[0]}`
+        `${API_KEY_PREFIX}:usage:${apiKey}:${new Date().toISOString().split('T')[0]}`,
       );
 
       next();
@@ -384,7 +387,7 @@ export function requestLogger() {
         path: req.path,
         statusCode: res.statusCode,
         duration: Date.now() - start,
-        userId: (req as any).user?.id,
+        userId: req.user?.id,
         ip: req.ip || req.connection.remoteAddress || 'unknown',
       };
 

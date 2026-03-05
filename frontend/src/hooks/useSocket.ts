@@ -19,7 +19,7 @@ export interface UseSocketOptions {
   /** Auto-join a sale room on mount */
   saleId?: string;
   /** Events to subscribe to on mount */
-  events?: Record<string, (...args: any[]) => void>;
+  events?: Record<string, (...args: unknown[]) => void>;
 }
 
 export interface UseSocketReturn {
@@ -29,9 +29,9 @@ export interface UseSocketReturn {
   reconnectAttempts: number;
   joinSaleRoom: (saleId: string) => void;
   leaveSaleRoom: (saleId: string) => void;
-  emit: (event: string, data?: any) => void;
-  on: (event: string, handler: (...args: any[]) => void) => void;
-  off: (event: string, handler: (...args: any[]) => void) => void;
+  emit: (event: string, data?: unknown) => void;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  off: (event: string, handler: (...args: unknown[]) => void) => void;
 }
 
 // ─── Hook ───────────────────────────────────────────────────
@@ -99,13 +99,14 @@ export function useInventoryUpdates(saleId: string) {
   const { isConnected } = useSocket({
     saleId,
     events: {
-      'inventory:updated': (data: any) => {
+      'inventory:updated': (data: unknown) => {
+        const d = data as { remaining: number; total: number; percentRemaining: number };
         setInventory({
-          remaining: data.remaining,
-          total: data.total,
-          percentRemaining: data.percentRemaining,
+          remaining: d.remaining,
+          total: d.total,
+          percentRemaining: d.percentRemaining,
         });
-        setIsLowStock(data.percentRemaining <= 10);
+        setIsLowStock(d.percentRemaining <= 10);
       },
       'inventory:soldout': () => {
         setIsSoldOut(true);
@@ -131,10 +132,11 @@ export function useQueuePosition(saleId: string) {
   useSocket({
     saleId,
     events: {
-      'queue:position': (data: any) => {
-        if (data.position !== undefined) {
-          setPosition(data.position);
-          setEstimatedWait(data.estimatedWaitMs || null);
+      'queue:position': (data: unknown) => {
+        const d = data as { position?: number; estimatedWaitMs?: number };
+        if (d.position !== undefined) {
+          setPosition(d.position);
+          setEstimatedWait(d.estimatedWaitMs || null);
         }
       },
       'queue:yourTurn': () => {
@@ -160,21 +162,24 @@ export function useSaleEvents(saleId?: string) {
   useSocket({
     saleId,
     events: {
-      'sale:started': (data: any) => {
-        if (!saleId || data.saleId === saleId) {
+      'sale:started': (data: unknown) => {
+        const d = data as { saleId?: string };
+        if (!saleId || d.saleId === saleId) {
           setSaleState({ isActive: true, message: 'Sale is live!' });
         }
       },
-      'sale:ended': (data: any) => {
-        if (!saleId || data.saleId === saleId) {
+      'sale:ended': (data: unknown) => {
+        const d = data as { saleId?: string };
+        if (!saleId || d.saleId === saleId) {
           setSaleState({ isActive: false, message: 'Sale has ended' });
         }
       },
-      'sale:countdown': (data: any) => {
-        if (!saleId || data.saleId === saleId) {
+      'sale:countdown': (data: unknown) => {
+        const d = data as { saleId?: string; secondsRemaining: number };
+        if (!saleId || d.saleId === saleId) {
           setSaleState((prev) => ({
             ...prev,
-            secondsRemaining: data.secondsRemaining,
+            secondsRemaining: d.secondsRemaining,
           }));
         }
       },

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface Order {
   id: string;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const OrderList: React.FC<Props> = ({ onSelectOrder }) => {
+  const toast = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -25,11 +27,7 @@ const OrderList: React.FC<Props> = ({ onSelectOrder }) => {
   const [offset, setOffset] = useState(0);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [search, status, limit, offset]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -38,15 +36,21 @@ const OrderList: React.FC<Props> = ({ onSelectOrder }) => {
       params.append('limit', limit.toString());
       params.append('offset', offset.toString());
 
-      const response = await API.get(`/admin/orders?${params.toString()}`);
+      const response = await API.get<{ data: { orders: Order[]; pagination: { total: number } } }>(
+        `/admin/orders?${params.toString()}`,
+      );
       setOrders(response.data.orders);
       setTotal(response.data.pagination.total);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
+    } catch (_error) {
+      toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, status, limit, offset, toast]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

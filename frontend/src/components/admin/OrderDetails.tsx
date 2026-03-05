@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API } from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface OrderDetail {
   id: string;
@@ -19,28 +20,29 @@ interface Props {
 }
 
 const OrderDetails: React.FC<Props> = ({ orderId, onClose }) => {
+  const toast = useToast();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  useEffect(() => {
-    fetchOrderDetails();
-  }, [orderId]);
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     try {
-      const response = await API.get(`/admin/orders/${orderId}`);
+      const response = await API.get<{ data: OrderDetail }>(`/admin/orders/${orderId}`);
       setOrder(response.data);
       setError(null);
     } catch (err) {
       setError('Failed to fetch order details');
-      console.error(err);
+      toast.error('Failed to fetch order details');
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, toast]);
+
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [fetchOrderDetails]);
 
   const handleCancelOrder = async () => {
     if (!cancelReason.trim()) {
@@ -54,10 +56,11 @@ const OrderDetails: React.FC<Props> = ({ orderId, onClose }) => {
       });
       setShowCancelForm(false);
       setCancelReason('');
+      toast.success('Order cancelled successfully');
       await fetchOrderDetails();
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to cancel order');
-      console.error(err);
+      toast.error('Failed to cancel order');
     }
   };
 

@@ -13,6 +13,7 @@
 
 import { getPool } from '../utils/database';
 import { redisClient, isRedisConnected } from '../utils/redis';
+import { logger } from '../utils/logger';
 import { REDIS_KEYS } from '../config/redisKeys';
 
 // Types
@@ -38,7 +39,7 @@ export interface FraudAlert {
   alertType: FraudAlertType;
   severity: 'low' | 'medium' | 'high' | 'critical';
   description: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   createdAt: Date;
   resolved: boolean;
 }
@@ -80,7 +81,7 @@ const HIGH_RISK_THRESHOLD = 70;
 const MEDIUM_RISK_THRESHOLD = 40;
 const VELOCITY_WINDOW = 3600; // 1 hour in seconds
 const MAX_ORDERS_PER_HOUR = 5;
-const MAX_FAILED_PAYMENTS = 3;
+// const MAX_FAILED_PAYMENTS = 3; // Reserved for future use
 const ALERT_TTL = 7 * 24 * 60 * 60; // 7 days
 
 class FraudDetectionService {
@@ -203,7 +204,7 @@ class FraudDetectionService {
       await redisClient.setex(
         `${REDIS_KEYS.FRAUD_PREFIX}:score:${transaction.orderId}`,
         3600,
-        JSON.stringify(riskScore)
+        JSON.stringify(riskScore),
       );
     }
 
@@ -221,7 +222,7 @@ class FraudDetectionService {
       mouseMovements?: boolean;
       scrollEvents?: boolean;
       keyboardEvents?: boolean;
-    }
+    },
   ): Promise<{
     isBot: boolean;
     confidence: number;
@@ -311,7 +312,7 @@ class FraudDetectionService {
       ipAddress: string;
       deviceFingerprint?: DeviceFingerprint;
       loginTime: Date;
-    }
+    },
   ): Promise<{
     isSuspicious: boolean;
     riskLevel: 'low' | 'medium' | 'high';
@@ -328,7 +329,7 @@ class FraudDetectionService {
         `SELECT COUNT(*) as count FROM login_attempts 
          WHERE user_id = $1 AND success = false 
          AND created_at > NOW() - INTERVAL '1 hour'`,
-        [userId]
+        [userId],
       );
 
       if (parseInt(failedLogins.rows[0].count) >= 3) {
@@ -347,7 +348,7 @@ class FraudDetectionService {
       const recentPasswordChange = await pool.query(
         `SELECT COUNT(*) as count FROM password_changes 
          WHERE user_id = $1 AND created_at > NOW() - INTERVAL '24 hours'`,
-        [userId]
+        [userId],
       );
 
       if (parseInt(recentPasswordChange.rows[0].count) > 0) {
@@ -366,7 +367,7 @@ class FraudDetectionService {
       }
     } catch (error) {
       // Tables might not exist, log and continue with lower confidence
-      console.log('Account takeover detection using limited data');
+      logger.debug('Account takeover detection using limited data');
     }
 
     const riskLevel = riskScore >= 50 ? 'high' : riskScore >= 25 ? 'medium' : 'low';
@@ -390,7 +391,7 @@ class FraudDetectionService {
    * Create a fraud alert
    */
   async createAlert(
-    alertData: Omit<FraudAlert, 'id' | 'createdAt' | 'resolved'>
+    alertData: Omit<FraudAlert, 'id' | 'createdAt' | 'resolved'>,
   ): Promise<FraudAlert> {
     const alert: FraudAlert = {
       ...alertData,
@@ -404,7 +405,7 @@ class FraudDetectionService {
       await redisClient.setex(
         `${REDIS_KEYS.FRAUD_PREFIX}:alert:${alert.id}`,
         ALERT_TTL,
-        JSON.stringify(alert)
+        JSON.stringify(alert),
       );
 
       // Add to alerts list
@@ -428,7 +429,7 @@ class FraudDetectionService {
       const alertIds = await redisClient.lrange(
         `${REDIS_KEYS.FRAUD_PREFIX}:alerts:list`,
         0,
-        limit - 1
+        limit - 1,
       );
 
       for (const id of alertIds) {
@@ -475,7 +476,7 @@ class FraudDetectionService {
       const avgResult = await pool.query(
         `SELECT AVG(total_amount) as avg_amount, STDDEV(total_amount) as stddev
          FROM orders WHERE user_id = $1`,
-        [userId]
+        [userId],
       );
 
       const { avg_amount, stddev } = avgResult.rows[0];
@@ -510,14 +511,14 @@ class FraudDetectionService {
 
   private async analyzeDevice(
     userId: string | undefined,
-    fingerprint?: DeviceFingerprint
+    fingerprint?: DeviceFingerprint,
   ): Promise<number> {
     if (!fingerprint) return 30;
     if (!userId) return 20;
 
     if (isRedisConnected()) {
       const knownDevices = await redisClient.smembers(
-        `${REDIS_KEYS.FRAUD_PREFIX}:devices:${userId}`
+        `${REDIS_KEYS.FRAUD_PREFIX}:devices:${userId}`,
       );
 
       if (knownDevices.includes(fingerprint.fingerprint)) {
@@ -527,7 +528,7 @@ class FraudDetectionService {
       // Add new device
       await redisClient.sadd(
         `${REDIS_KEYS.FRAUD_PREFIX}:devices:${userId}`,
-        fingerprint.fingerprint
+        fingerprint.fingerprint,
       );
 
       return knownDevices.length === 0 ? 10 : 40;
@@ -601,7 +602,7 @@ class FraudDetectionService {
   private isImpossibleTravel(
     lastLogin: { ip: string; time: Date },
     currentIp: string,
-    currentTime: Date
+    currentTime: Date,
   ): boolean {
     // Simplified check - in reality would use IP geolocation
     const timeDiffHours =

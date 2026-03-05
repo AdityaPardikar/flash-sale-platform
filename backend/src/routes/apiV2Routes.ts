@@ -51,7 +51,7 @@ function paginatedResponse<T>(
   data: T[],
   page: number,
   limit: number,
-  total: number
+  total: number,
 ): ApiResponse<T[]> {
   return {
     success: true,
@@ -145,10 +145,11 @@ function endpointRateLimit(maxRequests: number, windowMs: number) {
 router.get('/products', async (req: Request, res: Response) => {
   try {
     const { page, limit, offset } = parsePagination(req);
-    const { sortBy, sortOrder } = parseSorting(req, ['name', 'price', 'createdAt']);
+    // parseSorting called for input validation
+    parseSorting(req, ['name', 'price', 'createdAt']);
     const { category, search, minPrice, maxPrice } = req.query;
 
-    const filters: any = {};
+    const filters: Record<string, unknown> = {};
     if (category) filters.category = category;
     if (search) filters.search = search;
     if (minPrice) filters.minPrice = parseFloat(minPrice as string);
@@ -164,8 +165,8 @@ router.get('/products', async (req: Request, res: Response) => {
     }
 
     res.json(paginatedResponse(products || [], page, limit, products?.length || 0));
-  } catch (error: any) {
-    res.status(500).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -191,8 +192,8 @@ router.get('/products/:id', async (req: Request, res: Response) => {
     }
 
     res.json(successResponse(product));
-  } catch (error: any) {
-    res.status(500).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -209,8 +210,8 @@ router.post('/products', authMiddleware, async (req: Request, res: Response) => 
   try {
     const product = await productService.createProduct(req.body);
     res.status(201).json(successResponse(product));
-  } catch (error: any) {
-    res.status(400).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(400).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -225,8 +226,8 @@ router.put('/products/:id', authMiddleware, async (req: Request, res: Response) 
   try {
     const product = await productService.updateProduct(req.params.id, req.body);
     res.json(successResponse(product));
-  } catch (error: any) {
-    res.status(400).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(400).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -241,8 +242,8 @@ router.delete('/products/:id', authMiddleware, async (req: Request, res: Respons
   try {
     await productService.deleteProduct(req.params.id);
     res.json(successResponse({ deleted: true }));
-  } catch (error: any) {
-    res.status(400).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(400).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -262,7 +263,7 @@ router.get('/flash-sales', async (req: Request, res: Response) => {
     const { page, limit, offset } = parsePagination(req);
     const { status, upcoming, active } = req.query;
 
-    const filters: any = { limit, offset };
+    const filters: Record<string, unknown> = { limit, offset };
     if (status) filters.status = status;
     if (upcoming === 'true') filters.upcoming = true;
     if (active === 'true') filters.active = true;
@@ -276,8 +277,8 @@ router.get('/flash-sales', async (req: Request, res: Response) => {
       sales = await flashSaleService.getAllFlashSales();
     }
     res.json(paginatedResponse(sales || [], page, limit, sales?.length || 0));
-  } catch (error: any) {
-    res.status(500).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -295,10 +296,10 @@ router.get(
     try {
       const sales = await flashSaleService.getActiveFlashSales();
       res.json(successResponse(sales));
-    } catch (error: any) {
-      res.status(500).json(errorResponse(error.message));
+    } catch (error: unknown) {
+      res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
     }
-  }
+  },
 );
 
 /**
@@ -312,8 +313,8 @@ router.get('/flash-sales/upcoming', async (req: Request, res: Response) => {
   try {
     const sales = await flashSaleService.getUpcomingFlashSales();
     res.json(successResponse(sales));
-  } catch (error: any) {
-    res.status(500).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -339,8 +340,8 @@ router.get('/flash-sales/:id', async (req: Request, res: Response) => {
     }
 
     res.json(successResponse({ ...sale, queueStats }));
-  } catch (error: any) {
-    res.status(500).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -362,8 +363,9 @@ router.get(
         return res.status(404).json(errorResponse('Flash sale not found'));
       }
 
-      const total = (sale as any).quantity_available || 0;
-      const sold = (sale as any).sold_count || 0;
+      const total =
+        ((sale as unknown as Record<string, unknown>).quantity_available as number) || 0;
+      const sold = ((sale as unknown as Record<string, unknown>).sold_count as number) || 0;
       const remaining = total - sold;
 
       res.json(
@@ -374,12 +376,12 @@ router.get(
           sold,
           available: remaining,
           timestamp: new Date().toISOString(),
-        })
+        }),
       );
-    } catch (error: any) {
-      res.status(500).json(errorResponse(error.message));
+    } catch (error: unknown) {
+      res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
     }
-  }
+  },
 );
 
 // ============================================================================
@@ -399,7 +401,7 @@ router.post(
   endpointRateLimit(10, 60000), // 10 req/min per user
   async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user.id;
+      const userId = req.user.id;
       const entry = await queueService.joinQueue(req.params.saleId, userId);
 
       res.json(
@@ -407,12 +409,12 @@ router.post(
           ...entry,
           estimatedWaitTime: entry.position * 30, // seconds
           message: `You are #${entry.position} in queue`,
-        })
+        }),
       );
-    } catch (error: any) {
-      res.status(400).json(errorResponse(error.message));
+    } catch (error: unknown) {
+      res.status(400).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
     }
-  }
+  },
 );
 
 /**
@@ -424,7 +426,7 @@ router.post(
  */
 router.get('/queue/:saleId/position', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     const entry = await queueService.getQueuePosition(userId, req.params.saleId);
 
     if (!entry) {
@@ -439,10 +441,10 @@ router.get('/queue/:saleId/position', authMiddleware, async (req: Request, res: 
         estimatedWaitTime: entry.estimatedWaitMinutes * 60,
         aheadOfYou: entry.totalAhead,
         totalInQueue: stats?.totalWaiting || 0,
-      })
+      }),
     );
-  } catch (error: any) {
-    res.status(500).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -455,11 +457,11 @@ router.get('/queue/:saleId/position', authMiddleware, async (req: Request, res: 
  */
 router.delete('/queue/:saleId/leave', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user.id;
     await queueService.leaveQueue(req.params.saleId, userId);
     res.json(successResponse({ left: true }));
-  } catch (error: any) {
-    res.status(400).json(errorResponse(error.message));
+  } catch (error: unknown) {
+    res.status(400).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
   }
 });
 
@@ -477,10 +479,10 @@ router.get(
     try {
       const stats = await queueService.getQueueStats(req.params.saleId);
       res.json(successResponse(stats));
-    } catch (error: any) {
-      res.status(500).json(errorResponse(error.message));
+    } catch (error: unknown) {
+      res.status(500).json(errorResponse(error instanceof Error ? error.message : 'Unknown error'));
     }
-  }
+  },
 );
 
 // ============================================================================
@@ -501,7 +503,7 @@ router.get('/health', async (req: Request, res: Response) => {
       version: '2.0.0',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-    })
+    }),
   );
 });
 
@@ -527,7 +529,7 @@ router.get('/status', async (req: Request, res: Response) => {
         vipSystem: true,
         priorityQueue: true,
       },
-    })
+    }),
   );
 });
 

@@ -60,7 +60,7 @@ export interface PricingRule {
 
 // Constants
 const PRICING_CACHE_TTL = 60; // 1 minute
-const DEMAND_ANALYSIS_WINDOW = 24 * 60 * 60 * 1000; // 24 hours in ms
+// const DEMAND_ANALYSIS_WINDOW = 24 * 60 * 60 * 1000; // 24 hours in ms (reserved for future use)
 
 class DynamicPricingService {
   // Pricing boundaries
@@ -78,7 +78,7 @@ class DynamicPricingService {
       isFlashSale?: boolean;
       targetMargin?: number;
       userSegment?: string;
-    } = {}
+    } = {},
   ): Promise<PriceRecommendation> {
     const { isFlashSale = false, targetMargin = 0.2, userSegment } = options;
 
@@ -97,7 +97,7 @@ class DynamicPricingService {
       const productResult = await pool.query(
         `SELECT id, name, price as base_price, cost_price, category
          FROM products WHERE id = $1`,
-        [productId]
+        [productId],
       );
 
       if (productResult.rows.length === 0) {
@@ -184,13 +184,13 @@ class DynamicPricingService {
            AND o.created_at > NOW() - INTERVAL '7 days'
          GROUP BY DATE_TRUNC('hour', created_at)
          ORDER BY hour DESC`,
-        [productId]
+        [productId],
       );
 
       // Get current inventory
       const inventoryResult = await pool.query(
         `SELECT quantity FROM inventory WHERE product_id = $1`,
-        [productId]
+        [productId],
       );
 
       const currentInventory = inventoryResult.rows[0]?.quantity || 0;
@@ -324,7 +324,7 @@ class DynamicPricingService {
   async getFlashSalePricing(
     productId: string,
     targetUnits: number,
-    saleDurationHours: number
+    saleDurationHours: number,
   ): Promise<{
     recommendedDiscount: number;
     recommendedPrice: number;
@@ -342,7 +342,7 @@ class DynamicPricingService {
     // Assume each 10% discount increases demand by 25%
     const discountNeeded = Math.min(
       this.FLASH_SALE_MAX_DISCOUNT,
-      Math.max(this.FLASH_SALE_MIN_DISCOUNT, (salesBoostNeeded - 1) * 0.4)
+      Math.max(this.FLASH_SALE_MIN_DISCOUNT, (salesBoostNeeded - 1) * 0.4),
     );
 
     const recommendedPrice = priceRec.currentPrice * (1 - discountNeeded);
@@ -366,7 +366,7 @@ class DynamicPricingService {
    */
   async applyPricingRules(
     productId: string,
-    basePrice: number
+    basePrice: number,
   ): Promise<{
     adjustedPrice: number;
     appliedRules: string[];
@@ -395,7 +395,7 @@ class DynamicPricingService {
   private async calculatePricingFactors(
     productId: string,
     basePrice: number,
-    userSegment?: string
+    userSegment?: string,
   ): Promise<PricingFactors> {
     // Get demand factor
     const demandPrediction = await this.predictDemand(productId);
@@ -410,7 +410,7 @@ class DynamicPricingService {
     const pool = getPool();
     const inventoryResult = await pool.query(
       'SELECT quantity FROM inventory WHERE product_id = $1',
-      [productId]
+      [productId],
     );
     const inventory = inventoryResult.rows[0]?.quantity || 0;
     const inventoryMultiplier = inventory < 10 ? 1.1 : inventory > 100 ? 0.95 : 1.0;
@@ -527,12 +527,13 @@ class DynamicPricingService {
     ];
   }
 
-  private async evaluateRule(rule: PricingRule, productId: string): Promise<boolean> {
+  private async evaluateRule(rule: PricingRule, _productId: string): Promise<boolean> {
     // Simplified rule evaluation
     switch (rule.condition) {
-      case 'time.is_weekend':
+      case 'time.is_weekend': {
         const day = new Date().getDay();
         return day === 0 || day === 6;
+      }
       default:
         return false;
     }
