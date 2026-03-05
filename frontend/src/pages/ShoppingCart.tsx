@@ -1,148 +1,42 @@
 /**
  * Shopping Cart Component
- * Week 5 Day 1: Payment System & Shopping Cart
+ * Week 8 Day 3: Refactored to use CartContext (real state management)
  *
  * Features:
- * - View cart items
- * - Update quantities
+ * - View cart items with CartContext
+ * - Update quantities via context
  * - Remove items
- * - Cart summary
+ * - Cart summary with tax/shipping
  * - Proceed to checkout
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-// Types
-interface CartItem {
-  productId: string;
-  saleId?: string;
-  quantity: number;
-  price: number;
-  originalPrice: number;
-  name: string;
-  imageUrl?: string;
-  maxQuantity: number;
-}
-
-interface Cart {
-  id: string;
-  items: CartItem[];
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
-  itemCount: number;
-}
-
-interface CartSummary {
-  subtotal: number;
-  discount: number;
-  tax: number;
-  shipping: number;
-  total: number;
-  itemCount: number;
-  savings: number;
-}
-
-// Mock cart data for demonstration
-const mockCart: Cart = {
-  id: 'cart_demo_123',
-  items: [
-    {
-      productId: '1',
-      saleId: 'sale_1',
-      quantity: 1,
-      price: 699.99,
-      originalPrice: 999.99,
-      name: 'iPhone 15 Pro Max - Flash Deal',
-      imageUrl: 'https://picsum.photos/seed/iphone/200/200',
-      maxQuantity: 2,
-    },
-    {
-      productId: '2',
-      saleId: 'sale_2',
-      quantity: 2,
-      price: 149.99,
-      originalPrice: 249.99,
-      name: 'Sony WH-1000XM5 Headphones',
-      imageUrl: 'https://picsum.photos/seed/headphones/200/200',
-      maxQuantity: 3,
-    },
-    {
-      productId: '3',
-      quantity: 1,
-      price: 59.99,
-      originalPrice: 59.99,
-      name: 'Premium USB-C Cable Bundle',
-      imageUrl: 'https://picsum.photos/seed/cable/200/200',
-      maxQuantity: 10,
-    },
-  ],
-  subtotal: 1059.96,
-  discount: 400.01,
-  tax: 84.8,
-  total: 1144.76,
-  itemCount: 4,
-};
+import { useCart } from '../contexts/CartContext';
 
 const ShoppingCart: React.FC = () => {
   const navigate = useNavigate();
-  const [cart, setCart] = useState<Cart>(mockCart);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    items,
+    summary,
+    isLoading,
+    updateQuantity: updateCartQuantity,
+    removeItem: removeCartItem,
+    clearCart: clearCartItems,
+  } = useCart();
   const [updatingItem, setUpdatingItem] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Calculate summary
-  const calculateSummary = (items: CartItem[]): CartSummary => {
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const originalTotal = items.reduce((sum, item) => sum + item.originalPrice * item.quantity, 0);
-    const discount = originalTotal - subtotal;
-    const shipping = subtotal >= 50 ? 0 : 5.99;
-    const tax = subtotal * 0.08;
-    const total = subtotal + tax + shipping;
-
-    return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      discount: Math.round(discount * 100) / 100,
-      tax: Math.round(tax * 100) / 100,
-      shipping: Math.round(shipping * 100) / 100,
-      total: Math.round(total * 100) / 100,
-      itemCount: items.reduce((count, item) => count + item.quantity, 0),
-      savings: Math.round(discount * 100) / 100,
-    };
-  };
-
-  const [summary, setSummary] = useState<CartSummary>(calculateSummary(cart.items));
-
-  // Update quantity
+  // Update quantity (with brief loading indicator)
   const updateQuantity = async (productId: string, newQuantity: number) => {
     setUpdatingItem(productId);
     setError(null);
-
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      if (newQuantity <= 0) {
-        // Remove item
-        const newItems = cart.items.filter((item) => item.productId !== productId);
-        setCart({ ...cart, items: newItems });
-        setSummary(calculateSummary(newItems));
-      } else {
-        // Update quantity
-        const newItems = cart.items.map((item) =>
-          item.productId === productId
-            ? { ...item, quantity: Math.min(newQuantity, item.maxQuantity) }
-            : item
-        );
-        setCart({ ...cart, items: newItems });
-        setSummary(calculateSummary(newItems));
-      }
-    } catch (err) {
+      updateCartQuantity(productId, newQuantity);
+    } catch {
       setError('Failed to update cart');
     } finally {
-      setUpdatingItem(null);
+      setTimeout(() => setUpdatingItem(null), 200);
     }
   };
 
@@ -150,45 +44,31 @@ const ShoppingCart: React.FC = () => {
   const removeItem = async (productId: string) => {
     setUpdatingItem(productId);
     setError(null);
-
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const newItems = cart.items.filter((item) => item.productId !== productId);
-      setCart({ ...cart, items: newItems });
-      setSummary(calculateSummary(newItems));
-    } catch (err) {
+      removeCartItem(productId);
+    } catch {
       setError('Failed to remove item');
     } finally {
-      setUpdatingItem(null);
+      setTimeout(() => setUpdatingItem(null), 200);
     }
   };
 
   // Clear cart
-  const clearCart = async () => {
+  const clearCart = () => {
     if (!window.confirm('Are you sure you want to clear your cart?')) return;
-
-    setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setCart({ ...cart, items: [] });
-      setSummary(calculateSummary([]));
-    } catch (err) {
-      setError('Failed to clear cart');
-    } finally {
-      setIsLoading(false);
-    }
+    clearCartItems();
   };
 
   // Proceed to checkout
   const proceedToCheckout = () => {
-    if (cart.items.length === 0) {
+    if (items.length === 0) {
       setError('Your cart is empty');
       return;
     }
     navigate('/checkout');
   };
 
-  if (cart.items.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 py-8 px-4">
         <div className="max-w-4xl mx-auto">
@@ -196,8 +76,8 @@ const ShoppingCart: React.FC = () => {
             <div className="text-8xl mb-6">🛒</div>
             <h2 className="text-3xl font-bold text-white mb-4">Your Cart is Empty</h2>
             <p className="text-gray-300 mb-8">
-              Looks like you haven't added any items to your cart yet. Check out our flash sales for
-              amazing deals!
+              Looks like you haven&apos;t added any items to your cart yet. Check out our flash
+              sales for amazing deals!
             </p>
             <Link
               to="/"
@@ -240,7 +120,7 @@ const ShoppingCart: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {cart.items.map((item) => (
+            {items.map((item) => (
               <div
                 key={item.productId}
                 className={`bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 transition-all ${

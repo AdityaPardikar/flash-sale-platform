@@ -1,17 +1,18 @@
 /**
  * Checkout Component
- * Week 5 Day 1: Payment System & Shopping Cart
+ * Week 8 Day 3: Refactored to use CartContext (real state management)
  *
  * Features:
  * - Shipping address form
  * - Payment method selection
  * - Stripe Elements integration (simulated)
- * - Order review
+ * - Order review with real cart data
  * - Payment processing
  */
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useCart } from '../contexts/CartContext';
 
 // Types
 interface ShippingAddress {
@@ -32,23 +33,11 @@ interface PaymentDetails {
   cardName: string;
 }
 
-interface OrderItem {
-  name: string;
-  quantity: number;
-  price: number;
-}
-
 type CheckoutStep = 'shipping' | 'payment' | 'review' | 'confirmation';
-
-// Mock order data
-const mockOrderItems: OrderItem[] = [
-  { name: 'iPhone 15 Pro Max - Flash Deal', quantity: 1, price: 699.99 },
-  { name: 'Sony WH-1000XM5 Headphones', quantity: 2, price: 149.99 },
-  { name: 'Premium USB-C Cable Bundle', quantity: 1, price: 59.99 },
-];
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
+  const { items, summary, clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('shipping');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,11 +62,11 @@ const Checkout: React.FC = () => {
 
   const [orderId, setOrderId] = useState<string | null>(null);
 
-  // Calculate totals
-  const subtotal = mockOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.08;
-  const shipping_cost = subtotal >= 50 ? 0 : 5.99;
-  const total = subtotal + tax + shipping_cost;
+  // Use real cart data for totals
+  const subtotal = summary.subtotal;
+  const tax = summary.tax;
+  const shipping_cost = summary.shipping;
+  const total = summary.total;
 
   // Step Components
   const steps = [
@@ -119,6 +108,7 @@ const Checkout: React.FC = () => {
       const newOrderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       setOrderId(newOrderId);
       setCurrentStep('confirmation');
+      clearCart(); // Clear cart after successful order
     } catch (err) {
       setError('Payment failed. Please try again.');
     } finally {
@@ -462,7 +452,7 @@ const Checkout: React.FC = () => {
                 <div className="mb-6">
                   <h3 className="text-white font-semibold mb-4">Order Items</h3>
                   <div className="space-y-3">
-                    {mockOrderItems.map((item, index) => (
+                    {items.map((item, index) => (
                       <div
                         key={index}
                         className="flex justify-between items-center p-3 bg-white/5 rounded-xl"
@@ -548,7 +538,7 @@ const Checkout: React.FC = () => {
               <h3 className="text-xl font-bold text-white mb-6">Order Summary</h3>
 
               <div className="space-y-3 mb-6">
-                {mockOrderItems.map((item, index) => (
+                {items.map((item, index) => (
                   <div key={index} className="flex justify-between text-sm">
                     <span className="text-gray-300">
                       {item.name} × {item.quantity}
@@ -579,7 +569,7 @@ const Checkout: React.FC = () => {
 
               <div className="mt-6 p-4 bg-green-500/20 border border-green-500/50 rounded-xl">
                 <p className="text-green-400 text-sm flex items-center gap-2">
-                  <span>🎁</span> You're saving 30% with Flash Sale!
+                  <span>🎁</span> You&apos;re saving 30% with Flash Sale!
                 </p>
               </div>
             </div>

@@ -6,11 +6,15 @@ import QueueStatus from './components/QueueStatus';
 import AuthModal from './components/AuthModal';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { CartProvider, useCart } from './contexts/CartContext';
 import ConnectionStatus from './components/ConnectionStatus';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastContainer from './components/ToastContainer';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { NotificationPermission } from './components/NotificationPermission';
 import NotFound from './pages/NotFound';
 
 // ─── Lazy-loaded Pages (code-split) ──────────────────────────
@@ -48,6 +52,21 @@ const PageLoader: React.FC = () => (
     </div>
   </div>
 );
+
+// ─── Cart Badge ──────────────────────────────────────────────
+const CartBadge: React.FC = () => {
+  try {
+    const { itemCount } = useCart();
+    if (itemCount === 0) return null;
+    return (
+      <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-bounce">
+        {itemCount > 99 ? '99+' : itemCount}
+      </span>
+    );
+  } catch {
+    return null;
+  }
+};
 
 // ─── Mobile Navigation ───────────────────────────────────────
 const MobileNav: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
@@ -123,259 +142,266 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <WebSocketProvider>
-          <Router>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* ── Admin Login (no auth guard, no admin layout) ── */}
-                <Route path="/admin/login" element={<AdminLogin />} />
+        <CartProvider>
+          <WebSocketProvider>
+            <Router>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* ── Admin Login (no auth guard, no admin layout) ── */}
+                  <Route path="/admin/login" element={<AdminLogin />} />
 
-                {/* ── Admin Routes (nested under AdminDashboard layout) ── */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route index element={<Overview />} />
-                  <Route path="dashboard" element={<Overview />} />
-                  <Route path="analytics" element={<Analytics />} />
-                  <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
-                  <Route path="performance" element={<PerformanceDashboard />} />
-                  <Route path="feature-flags" element={<FeatureFlags />} />
-                  <Route path="sales" element={<FlashSales />} />
-                  <Route path="sales/:id" element={<SaleDetails />} />
-                  <Route path="queues" element={<QueueManagement />} />
-                  <Route path="users" element={<Users />} />
-                  <Route path="orders" element={<Orders />} />
-                  <Route path="logs" element={<AuditLogs />} />
-                  <Route path="alerts" element={<Alerts />} />
-                  <Route path="system-health" element={<SystemHealth />} />
-                  <Route path="deployments" element={<Deployments />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
+                  {/* ── Admin Routes (nested under AdminDashboard layout) ── */}
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute>
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Overview />} />
+                    <Route path="dashboard" element={<Overview />} />
+                    <Route path="analytics" element={<Analytics />} />
+                    <Route path="advanced-analytics" element={<AdvancedAnalytics />} />
+                    <Route path="performance" element={<PerformanceDashboard />} />
+                    <Route path="feature-flags" element={<FeatureFlags />} />
+                    <Route path="sales" element={<FlashSales />} />
+                    <Route path="sales/:id" element={<SaleDetails />} />
+                    <Route path="queues" element={<QueueManagement />} />
+                    <Route path="users" element={<Users />} />
+                    <Route path="orders" element={<Orders />} />
+                    <Route path="logs" element={<AuditLogs />} />
+                    <Route path="alerts" element={<Alerts />} />
+                    <Route path="system-health" element={<SystemHealth />} />
+                    <Route path="deployments" element={<Deployments />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
 
-                {/* ── Public Routes (with header/nav) ── */}
-                <Route
-                  path="/*"
-                  element={
-                    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col">
-                      {/* Header */}
-                      <header className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
-                        <div className="max-w-7xl mx-auto px-4 py-4">
-                          <div className="flex justify-between items-center">
-                            <Link to="/" className="flex items-center space-x-3">
-                              <div className="text-4xl">⚡</div>
-                              <div>
-                                <h1 className="text-2xl font-bold text-white">FlashBuy</h1>
-                                <p className="text-purple-200 text-sm">Lightning Fast Deals</p>
-                              </div>
-                            </Link>
-
-                            {/* Desktop Nav */}
-                            <nav className="hidden md:flex space-x-8">
-                              <NavLink
-                                to="/"
-                                end
-                                className={({ isActive }) =>
-                                  `transition-colors ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
-                                }
-                              >
-                                Flash Sales
-                              </NavLink>
-                              <NavLink
-                                to="/products"
-                                className={({ isActive }) =>
-                                  `transition-colors ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
-                                }
-                              >
-                                All Products
-                              </NavLink>
-                              <NavLink
-                                to="/queue"
-                                className={({ isActive }) =>
-                                  `transition-colors ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
-                                }
-                              >
-                                Queue Status
-                              </NavLink>
-                              <NavLink
-                                to="/cart"
-                                className={({ isActive }) =>
-                                  `transition-colors flex items-center gap-1 ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
-                                }
-                              >
-                                <span>🛒</span> Cart
-                              </NavLink>
-                              <NavLink
-                                to="/bot-demo"
-                                className={({ isActive }) =>
-                                  `font-bold transition-colors ${isActive ? 'text-yellow-300' : 'text-yellow-400 hover:text-yellow-300'}`
-                                }
-                              >
-                                🤖 Bot Demo
-                              </NavLink>
-                            </nav>
-
-                            <div className="flex items-center space-x-4">
-                              {/* Hamburger (mobile) */}
-                              <button
-                                onClick={() => setMobileNavOpen(!mobileNavOpen)}
-                                className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-                                aria-label="Toggle navigation menu"
-                              >
-                                <svg
-                                  className="w-6 h-6"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  {mobileNavOpen ? (
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  ) : (
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                  )}
-                                </svg>
-                              </button>
-
-                              <LanguageSwitcher compact />
-
-                              {user ? (
-                                <div className="flex items-center space-x-3">
-                                  <span className="text-white hidden sm:inline">
-                                    Welcome, {user.email}
-                                  </span>
-                                  <button
-                                    onClick={() => setUser(null)}
-                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-                                  >
-                                    Logout
-                                  </button>
+                  {/* ── Public Routes (with header/nav) ── */}
+                  <Route
+                    path="/*"
+                    element={
+                      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col">
+                        {/* Header */}
+                        <header className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+                          <div className="max-w-7xl mx-auto px-4 py-4">
+                            <div className="flex justify-between items-center">
+                              <Link to="/" className="flex items-center space-x-3">
+                                <div className="text-4xl">⚡</div>
+                                <div>
+                                  <h1 className="text-2xl font-bold text-white">FlashBuy</h1>
+                                  <p className="text-purple-200 text-sm">Lightning Fast Deals</p>
                                 </div>
-                              ) : (
-                                <button
-                                  onClick={() => setShowAuthModal(true)}
-                                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-2 rounded-lg transition-all transform hover:scale-105"
-                                >
-                                  Login
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </header>
+                              </Link>
 
-                      {/* Mobile Nav Dropdown */}
-                      <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-
-                      {/* Main Content */}
-                      <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
-                        <Routes>
-                          <Route path="/" element={<FlashSaleHub user={user} />} />
-                          <Route path="/products" element={<ProductListing user={user} />} />
-                          <Route path="/queue" element={<QueueStatus user={user} />} />
-                          <Route path="/cart" element={<ShoppingCart />} />
-                          <Route path="/checkout" element={<Checkout />} />
-                          <Route path="/bot-demo" element={<BotSimulationDemo />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </main>
-
-                      {/* Footer */}
-                      <footer className="bg-black/30 backdrop-blur-md border-t border-white/10 mt-auto">
-                        <div className="max-w-7xl mx-auto px-4 py-8">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <div>
-                              <div className="flex items-center space-x-2 mb-3">
-                                <span className="text-2xl">⚡</span>
-                                <span className="text-xl font-bold text-white">FlashBuy</span>
-                              </div>
-                              <p className="text-blue-200 text-sm">
-                                Lightning-fast flash sales platform built for speed and reliability.
-                              </p>
-                            </div>
-                            <div>
-                              <h4 className="text-white font-semibold mb-3">Quick Links</h4>
-                              <div className="space-y-2">
-                                <Link
+                              {/* Desktop Nav */}
+                              <nav className="hidden md:flex space-x-8">
+                                <NavLink
                                   to="/"
-                                  className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  end
+                                  className={({ isActive }) =>
+                                    `transition-colors ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
+                                  }
                                 >
                                   Flash Sales
-                                </Link>
-                                <Link
+                                </NavLink>
+                                <NavLink
                                   to="/products"
-                                  className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  className={({ isActive }) =>
+                                    `transition-colors ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
+                                  }
                                 >
                                   All Products
-                                </Link>
-                                <Link
+                                </NavLink>
+                                <NavLink
                                   to="/queue"
-                                  className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  className={({ isActive }) =>
+                                    `transition-colors ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
+                                  }
                                 >
                                   Queue Status
-                                </Link>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="text-white font-semibold mb-3">Platform</h4>
-                              <div className="space-y-2">
-                                <Link
-                                  to="/admin/login"
-                                  className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                </NavLink>
+                                <NavLink
+                                  to="/cart"
+                                  className={({ isActive }) =>
+                                    `transition-colors flex items-center gap-1 relative ${isActive ? 'text-purple-300 font-semibold' : 'text-white hover:text-purple-300'}`
+                                  }
                                 >
-                                  Admin Portal
-                                </Link>
-                                <Link
+                                  <span>🛒</span> Cart
+                                  <CartBadge />
+                                </NavLink>
+                                <NavLink
                                   to="/bot-demo"
-                                  className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  className={({ isActive }) =>
+                                    `font-bold transition-colors ${isActive ? 'text-yellow-300' : 'text-yellow-400 hover:text-yellow-300'}`
+                                  }
                                 >
-                                  Bot Demo
-                                </Link>
+                                  🤖 Bot Demo
+                                </NavLink>
+                              </nav>
+
+                              <div className="flex items-center space-x-4">
+                                {/* Hamburger (mobile) */}
+                                <button
+                                  onClick={() => setMobileNavOpen(!mobileNavOpen)}
+                                  className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                                  aria-label="Toggle navigation menu"
+                                >
+                                  <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    {mobileNavOpen ? (
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    ) : (
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 6h16M4 12h16M4 18h16"
+                                      />
+                                    )}
+                                  </svg>
+                                </button>
+
+                                <LanguageSwitcher compact />
+
+                                {user ? (
+                                  <div className="flex items-center space-x-3">
+                                    <span className="text-white hidden sm:inline">
+                                      Welcome, {user.email}
+                                    </span>
+                                    <button
+                                      onClick={() => setUser(null)}
+                                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+                                    >
+                                      Logout
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setShowAuthModal(true)}
+                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-2 rounded-lg transition-all transform hover:scale-105"
+                                  >
+                                    Login
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
-                          <div className="border-t border-white/10 mt-6 pt-6 text-center">
-                            <p className="text-blue-300 text-sm">
-                              &copy; {new Date().getFullYear()} FlashBuy Platform. Built with React,
-                              Node.js &amp; Redis.
-                            </p>
+                        </header>
+
+                        {/* Mobile Nav Dropdown */}
+                        <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
+                        {/* Main Content */}
+                        <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
+                          <Routes>
+                            <Route path="/" element={<FlashSaleHub user={user} />} />
+                            <Route path="/products" element={<ProductListing user={user} />} />
+                            <Route path="/queue" element={<QueueStatus user={user} />} />
+                            <Route path="/cart" element={<ShoppingCart />} />
+                            <Route path="/checkout" element={<Checkout />} />
+                            <Route path="/bot-demo" element={<BotSimulationDemo />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </main>
+
+                        {/* Footer */}
+                        <footer className="bg-black/30 backdrop-blur-md border-t border-white/10 mt-auto">
+                          <div className="max-w-7xl mx-auto px-4 py-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                              <div>
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <span className="text-2xl">⚡</span>
+                                  <span className="text-xl font-bold text-white">FlashBuy</span>
+                                </div>
+                                <p className="text-blue-200 text-sm">
+                                  Lightning-fast flash sales platform built for speed and
+                                  reliability.
+                                </p>
+                              </div>
+                              <div>
+                                <h4 className="text-white font-semibold mb-3">Quick Links</h4>
+                                <div className="space-y-2">
+                                  <Link
+                                    to="/"
+                                    className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  >
+                                    Flash Sales
+                                  </Link>
+                                  <Link
+                                    to="/products"
+                                    className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  >
+                                    All Products
+                                  </Link>
+                                  <Link
+                                    to="/queue"
+                                    className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  >
+                                    Queue Status
+                                  </Link>
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="text-white font-semibold mb-3">Platform</h4>
+                                <div className="space-y-2">
+                                  <Link
+                                    to="/admin/login"
+                                    className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  >
+                                    Admin Portal
+                                  </Link>
+                                  <Link
+                                    to="/bot-demo"
+                                    className="block text-blue-200 hover:text-white text-sm transition-colors"
+                                  >
+                                    Bot Demo
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="border-t border-white/10 mt-6 pt-6 text-center">
+                              <p className="text-blue-300 text-sm">
+                                &copy; {new Date().getFullYear()} FlashBuy Platform. Built with
+                                React, Node.js &amp; Redis.
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </footer>
+                        </footer>
 
-                      {/* Auth Modal */}
-                      {showAuthModal && (
-                        <AuthModal
-                          onClose={() => setShowAuthModal(false)}
-                          onLogin={(userData: UserData) => {
-                            setUser(userData);
-                            setShowAuthModal(false);
-                          }}
-                        />
-                      )}
+                        {/* Auth Modal */}
+                        {showAuthModal && (
+                          <AuthModal
+                            onClose={() => setShowAuthModal(false)}
+                            onLogin={(userData: UserData) => {
+                              setUser(userData);
+                              setShowAuthModal(false);
+                            }}
+                          />
+                        )}
 
-                      <ConnectionStatus showDetails autoHide position="bottom-right" />
-                    </div>
-                  }
-                />
-              </Routes>
-            </Suspense>
-            <ToastContainer />
-          </Router>
-        </WebSocketProvider>
+                        <ConnectionStatus showDetails autoHide position="bottom-right" />
+                        <OfflineIndicator />
+                        <PWAInstallBanner />
+                        <NotificationPermission />
+                      </div>
+                    }
+                  />
+                </Routes>
+              </Suspense>
+              <ToastContainer />
+            </Router>
+          </WebSocketProvider>
+        </CartProvider>
       </ToastProvider>
     </ErrorBoundary>
   );
